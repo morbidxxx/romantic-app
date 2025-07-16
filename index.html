@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>💕 Love App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        button {
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">💕</div>
+        <h1>Привет, моя любимая!</h1>
+        <p>Это наше романтическое приложение</p>
+        <button onclick="showLove()">Нажми меня! ❤️</button>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        let count = 0;
+        function showLove() {
+            count++;
+            document.getElementById('message').innerHTML = 
+                `<p>Я люблю тебя! (${count} раз) 💖</p>`;
+        }
+    </script>
+</body>
+</html>
