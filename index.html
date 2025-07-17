@@ -1,4 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💕 Для моей любимой</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fall {
+            0% { transform: translateY(-100vh) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(360deg); }
+        }
+        .falling-heart {
+            animation: fall 3s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+      import React, { useState, useEffect, useRef } from 'react';
 
 // Деструктуризация хуков для удобства
 const { useState: useReactState, useEffect: useReactEffect, useRef: useReactRef } = React;
@@ -849,31 +873,31 @@ const RomanticMobileApp = () => {
     }
   };
   
-  // Автоматическая загрузка пользовательских фотографий (01.jpg, 02.jpg, 03.jpg и т.д.)
+  // Автоматическая загрузка пользовательских фотографий из папки photos
   const generateCustomPhotos = () => {
     const photos = [];
     const photoTitles = [
-        'Наше первое свидание', 'Первый месяц вместе', 'День святого Валентина',
-        'Весенняя прогулка', 'Лето вместе', 'Осенние листья', 'Зимние каникулы',
-        'Наш первый год', 'Важный день', 'Сюрприз', 'Путешествие', 'Дома',
-        'С друзьями', 'Семейное фото', 'Праздник', 'Обычный день', 'Селфи',
-        'Закат', 'Рассвет', 'Наша любовь'
+      'Наше первое свидание', 'Первый месяц вместе', 'День святого Валентина', 
+      'Поездка к морю', 'Романтический ужин', 'Прогулка в парке', '8 марта',
+      'Пикник на природе', 'Домашний вечер', 'Полгода вместе', 'Отпуск в горах',
+      'Новогодняя ночь', 'День рождения', 'Поход в театр', 'Встреча с друзьями',
+      'Осенняя прогулка', 'Зимние каникулы', 'Годовщина', 'Весенние цветы', 'Планы на будущее'
     ];
     
     for (let i = 1; i <= 20; i++) {
-        const photoNumber = i.toString().padStart(2, '0');
-        photos.push({
-            url: `photos/${photoNumber}.jpg`,
-            title: photoTitles[i - 1] || `Фото ${photoNumber}`,
-            id: `custom-${photoNumber}`,
-            isCustom: true
-        });
+      const photoNumber = i.toString().padStart(2, '0');
+      photos.push({
+        url: `photos/${photoNumber}.jpg`,
+        title: photoTitles[i - 1] || `Фото ${photoNumber}`,
+        id: `custom-${photoNumber}`,
+        isCustom: true
+      });
     }
     return photos;
-};
+  };
 
   const customPhotos = generateCustomPhotos();
-  const allGalleryImages = [...galleryImages, ...customPhotos];
+  const allGalleryImages = customPhotos;
 
   // Важные даты
   const importantDates = [
@@ -1738,5 +1762,8 @@ const RomanticMobileApp = () => {
 };
 
 ReactDOM.render(<RomanticMobileApp />, document.getElementById('root'));
+      </script>
+</body>
+</html>
 
 
