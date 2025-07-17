@@ -125,14 +125,30 @@
                 commitment: "Преданность"
             };
             
-            // Изображения для галереи
-            const galleryImages = [
-                { url: 'keys/romantic_sunset?prompt=Beautiful%20romantic%20sunset%20couple%20beach', title: 'Закат вдвоем', id: 'img1' },
-                { url: 'keys/romantic_flowers?prompt=Pink%20roses%20bouquet%20romantic', title: 'Цветы для тебя', id: 'img2' },
-                { url: 'keys/romantic_dinner?prompt=Romantic%20dinner%20candles%20wine', title: 'Романтический ужин', id: 'img3' },
-                { url: 'keys/romantic_stars?prompt=Couple%20under%20stars%20night%20sky', title: 'Звезды для нас', id: 'img4' },
-                { url: 'keys/romantic_garden?prompt=Beautiful%20garden%20blooming%20flowers', title: 'Сад любви', id: 'img5' }
-            ];
+            // Автоматическая загрузка пользовательских фотографий из папки photos
+            const generateCustomPhotos = () => {
+                const photos = [];
+                const photoTitles = [
+                    'Наше первое свидание', 'Первый месяц вместе', 'День святого Валентина', 
+                    'Поездка к морю', 'Романтический ужин', 'Прогулка в парке', '8 марта',
+                    'Пикник на природе', 'Домашний вечер', 'Полгода вместе', 'Отпуск в горах',
+                    'Новогодняя ночь', 'День рождения', 'Поход в театр', 'Встреча с друзьями',
+                    'Осенняя прогулка', 'Зимние каникулы', 'Годовщина', 'Весенние цветы', 'Планы на будущее'
+                ];
+                
+                for (let i = 1; i <= 20; i++) {
+                    const photoNumber = i.toString().padStart(2, '0');
+                    photos.push({
+                        url: `photos/${photoNumber}.jpg`,
+                        title: photoTitles[i - 1] || `Фото ${photoNumber}`,
+                        id: `custom-${photoNumber}`,
+                        isCustom: true
+                    });
+                }
+                return photos;
+            };
+
+            const galleryImages = generateCustomPhotos();
             
             // Важные даты
             const importantDates = [
