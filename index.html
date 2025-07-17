@@ -22,21 +22,27 @@
     <div id="root"></div>
     
     <script type="text/babel">
-    const RomanticMobileApp = () => {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [currentLoveMessage, setCurrentLoveMessage] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showStoryModal, setShowStoryModal] = useState(false);
-  const [showGalleryModal, setShowGalleryModal] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [showSecretModal, setShowSecretModal] = useState(false);
-  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [hearts, setHearts] = useState([]);
-  const [petals, setPetals] = useState([]);
-  const [daysTogether, setDaysTogether] = useState(0);
-  const [upcomingEvent, setUpcomingEvent] = useState(null);
-  const [hasUpcomingNotification, setHasUpcomingNotification] = useState(false);
+  import React, { useState, useEffect, useRef } from 'react';
+
+// Деструктуризация хуков для удобства
+const { useState: useReactState, useEffect: useReactEffect, useRef: useReactRef } = React;
+
+const RomanticMobileApp = () => {
+  // Исправленные хуки с React.
+  const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+  const [currentLoveMessage, setCurrentLoveMessage] = React.useState(null);
+  const [selectedCategory, setSelectedCategory] = React.useState('all');
+  const [showStoryModal, setShowStoryModal] = React.useState(false);
+  const [showGalleryModal, setShowGalleryModal] = React.useState(false);
+  const [showCalendarModal, setShowCalendarModal] = React.useState(false);
+  const [showSecretModal, setShowSecretModal] = React.useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = React.useState(false);
+  const [showNotificationModal, setShowNotificationModal] = React.useState(false);
+  const [hearts, setHearts] = React.useState([]);
+  const [petals, setPetals] = React.useState([]);
+  const [daysTogether, setDaysTogether] = React.useState(0);
+  const [upcomingEvent, setUpcomingEvent] = React.useState(null);
+  const [hasUpcomingNotification, setHasUpcomingNotification] = React.useState(false);
   
   // Дата начала отношений (можно изменить на свою дату)
   const relationshipStart = new Date('2007-02-21');
@@ -984,7 +990,7 @@
   };
 
   // Расчет дней вместе и проверка уведомлений
-  useEffect(() => {
+  React.useEffect(() => {
     const today = new Date();
     const diffTime = Math.abs(today - relationshipStart);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -1050,7 +1056,7 @@
   };
 
   // Автоматическая смена изображений каждые 10 секунд
-  useEffect(() => {
+  React.useEffect(() => {
     if (allGalleryImages.length === 0) return;
     
     const interval = setInterval(() => {
@@ -1063,7 +1069,7 @@
   }, [allGalleryImages.length]);
 
   // Анимация падающих лепестков
-  useEffect(() => {
+  React.useEffect(() => {
     const createPetal = () => {
       const petal = {
         id: Date.now() + Math.random(),
@@ -1085,7 +1091,7 @@
   }, []);
 
   // Анимация частиц-сердечек
-  useEffect(() => {
+  React.useEffect(() => {
     const animateHearts = () => {
       setHearts(prev => 
         prev.map(heart => ({
@@ -1737,7 +1743,6 @@
     </div>
   );
 };
-
 ReactDOM.render(<RomanticMobileApp />, document.getElementById('root'));       
     </script>
 </body>
