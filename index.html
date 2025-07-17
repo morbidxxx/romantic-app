@@ -442,7 +442,7 @@
                 }
             };
 
-            // Автоматическая загрузка пользовательских фотографий из папки photos
+           // Автоматическая загрузка пользовательских фотографий из папки photos
             const generateCustomPhotos = () => {
                 const photos = [];
                 const photoTitles = [
@@ -456,7 +456,7 @@
                 for (let i = 1; i <= 20; i++) {
                     const photoNumber = i.toString().padStart(2, '0');
                     photos.push({
-                        url: `keys/photo-${photoNumber}?prompt=${encodeURIComponent(photoTitles[i-1] + ' романтическое фото влюбленной пары')}`,
+                        url: `photos/${photoNumber}.jpg`,
                         title: photoTitles[i - 1] || `Фото ${photoNumber}`,
                         id: `custom-${photoNumber}`,
                         isCustom: true
