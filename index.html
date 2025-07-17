@@ -300,31 +300,6 @@
                 commitment: "Преданность"
             };
 
-            // Автоматическая загрузка пользовательских фотографий из папки photos
-            const generateCustomPhotos = () => {
-                const photos = [];
-                const photoTitles = [
-                  'Наше первое свидание', 'Первый месяц вместе', 'День святого Валентина', 
-                  'Поездка к морю', 'Романтический ужин', 'Прогулка в парке', '8 марта',
-                  'Пикник на природе', 'Домашний вечер', 'Полгода вместе', 'Отпуск в горах',
-                  'Новогодняя ночь', 'День рождения', 'Поход в театр', 'Встреча с друзьями',
-                  'Осенняя прогулка', 'Зимние каникулы', 'Годовщина', 'Весенние цветы', 'Планы на будущее'
-               ];
-    
-                for (let i = 1; i <= 20; i++) {
-                  const photoNumber = i.toString().padStart(2, '0');
-                  photos.push({
-                    url: `photos/${photoNumber}.jpg`,
-                    title: photoTitles[i - 1] || `Фото ${photoNumber}`,
-                    id: `custom-${photoNumber}`,
-                    isCustom: true
-                  });
-                }
-                return photos;
-          };
-
-  const customPhotos = generateCustomPhotos();
-  const allGalleryImages = customPhotos;
 
             // ДОБАВЛЕНО: Функция для проверки пароля
             const handlePasswordSubmit = (e) => {
@@ -361,6 +336,30 @@
                     setShowPasswordModal(false);
                 }
             }, []);
+            // Автоматическая загрузка пользовательских фотографий из папки photos
+            const generateCustomPhotos = () => {
+                const photos = [];
+                const photoTitles = [
+                    'Наше первое свидание', 'Первый месяц вместе', 'День святого Валентина', 
+                    'Поездка к морю', 'Романтический ужин', 'Прогулка в парке', '8 марта',
+                    'Пикник на природе', 'Домашний вечер', 'Полгода вместе', 'Отпуск в горах',
+                    'Новогодняя ночь', 'День рождения', 'Поход в театр', 'Встреча с друзьями',
+                    'Осенняя прогулка', 'Зимние каникулы', 'Годовщина', 'Весенние цветы', 'Планы на будущее'
+                ];
+                
+                for (let i = 1; i <= 20; i++) {
+                    const photoNumber = i.toString().padStart(2, '0');
+                    photos.push({
+                        url: `photos/${photoNumber}.jpg`,
+                        title: photoTitles[i - 1] || `Фото ${photoNumber}`,
+                        id: `custom-${photoNumber}`,
+                        isCustom: true
+                    });
+                }
+                return photos;
+            };
+
+            const galleryImages = generateCustomPhotos();
 
             // ДОБАВЛЕНО: Функции для работы с уведомлениями
             const requestNotificationPermission = async () => {
