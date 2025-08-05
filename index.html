@@ -1369,101 +1369,59 @@
                     
                     {/* Модальное окно истории любви */}
                     {showStoryModal && (
-                        <div className="fixed inset-0 bg-black/50 modal-backdrop z-50 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl">
-                                <div className="bg-gradient-to-r from-rose-400 to-pink-500 text-white p-4">
+                        <div className="fixed inset-0 bg-black/80 z-50 modal-backdrop">
+                            <div className="bg-white h-full overflow-y-auto custom-scrollbar">
+                                <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-4 sticky top-0 z-10">
                                     <div className="flex justify-between items-center">
-                                        <h2 className="text-xl font-bold flex items-center gap-2">
-                                            📖 {loveStory.title}
-                                        </h2>
-                                        <button
-                                            onClick={() => setShowStoryModal(false)}
-                                            className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
-                                        >
-                                            ✕
-                                        </button>
+                                        <h2 className="text-xl font-bold">📖 Наша история</h2>
+                                        <button onClick={() => setShowStoryModal(false)} className="text-white text-2xl">✕</button>
                                     </div>
                                 </div>
-                                
-                                <div className="p-4 custom-scrollbar overflow-y-auto max-h-96">
-                                    <div className="space-y-6">
-                                        {loveStory.chapters.map((chapter, index) => (
-                                            <div key={index} className="border-l-4 border-pink-300 pl-4">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className="text-2xl">{chapter.emotion}</span>
-                                                    <h3 className="font-bold text-gray-800">{chapter.date}</h3>
-                                                </div>
-                                                <p className="text-gray-600 leading-relaxed">
-                                                    {chapter.text}
+                                <div className="p-4 space-y-6 pb-20">
+                                    {loveStory.chapters.map((chapter, index) => (
+                                        <div key={index} className="border-l-4 border-pink-400 pl-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xl">{chapter.emotion}</span>
+                                                <h3 className="text-lg font-bold text-gray-800">{chapter.date}</h3>
+                                            </div>
+                                            <p className="text-gray-700 leading-relaxed">{chapter.text}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {showCalendarModal && (
+                        <div className="fixed inset-0 bg-black/80 z-50 modal-backdrop">
+                            <div className="bg-white h-full overflow-y-auto custom-scrollbar">
+                                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4 sticky top-0 z-10">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-xl font-bold">📅 Важные даты</h2>
+                                        <button onClick={() => setShowCalendarModal(false)} className="text-white text-2xl">✕</button>
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-4 pb-20">
+                                    {importantDates.map((dateItem, index) => (
+                                        <div key={index} className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+                                            <div className="text-3xl">{dateItem.emoji}</div>
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-bold text-gray-800">{dateItem.title}</h3>
+                                                <p className="text-gray-600 text-sm">{dateItem.description}</p>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    📅 {new Date(dateItem.date).toLocaleDateString('ru-RU')}
                                                 </p>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     )}
-
-                    {/* Модальное окно календаря */}
-                    {showCalendarModal && (
-                        <div className="fixed inset-0 bg-black/50 modal-backdrop z-50 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl">
-                                <div className="bg-gradient-to-r from-purple-400 to-indigo-500 text-white p-4">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="text-xl font-bold flex items-center gap-2">
-                                            📅 Важные даты
-                                        </h2>
-                                        <button
-                                            onClick={() => setShowCalendarModal(false)}
-                                            className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <div className="p-4 custom-scrollbar overflow-y-auto max-h-96">
-                                    <div className="space-y-4">
-                                        {importantDates.map((dateItem, index) => {
-                                            const eventDate = new Date(dateItem.date);
-                                            const today = new Date();
-                                            const isUpcoming = eventDate >= today;
-                                            const daysDiff = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
-                                            
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className={`p-4 rounded-xl border-2 ${
-                                                        isUpcoming && daysDiff <= 7 
-                                                            ? 'bg-yellow-50 border-yellow-300' 
-                                                            : 'bg-gray-50 border-gray-200'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <span className="text-2xl">{dateItem.emoji}</span>
-                                                        <div>
-                                                            <h3 className="font-bold text-gray-800">{dateItem.title}</h3>
-                                                            <p className="text-sm text-gray-600">{dateItem.description}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-xs text-gray-500">
-                                                        📅 {eventDate.toLocaleDateString('ru-RU')}
-                                                        {isUpcoming && daysDiff <= 30 && (
-                                                            <span className="ml-2 text-orange-600 font-semibold">
-                                                                {daysDiff === 0 ? '🎉 Сегодня!' : 
-                                                                 daysDiff === 1 ? '⏰ Завтра!' : 
-                                                                 `⏰ Через ${daysDiff} дней`}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                </div>
+            );
+        };
+                   
 
                     {/* Модальное окно категорий */}
                     {showCategoriesModal && (
