@@ -1124,37 +1124,7 @@
                             </button>
                         </div>
                     </div>
-                    // В заголовке приложения
-                    <div className="flex justify-between items-center text-xs mb-2">
-                        <span>🏆 {unlockedAchievements.size}/{achievements.length} достижений</span>
-                        {!userStats.notificationsEnabled && (
-                            <button
-                                onClick={() => {
-                                    updateStats({ notificationsEnabled: true });
-                                }}
-                                className="bg-white/30 px-2 py-1 rounded text-xs text-white"
-                            >
-                                🔔 Включить
-                            </button>
-                        )}
-                    </div>
-                    
-                    // В навигации
-                    <button
-                        onClick={(e) => {
-                            createHeartParticles(e);
-                            setShowAchievementsModal(true);
-                        }}
-                        className="flex flex-col items-center py-2 px-1 rounded-lg hover:bg-pink-50 transition-colors relative no-select"
-                    >
-                        <span className="text-xl mb-1">🏆</span>
-                        <span className="text-xs text-gray-600 font-medium">Награды</span>
-                        {newAchievements.length > 0 && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">{newAchievements.length}</span>
-                            </div>
-                        )}
-                    </button>
+                   
 
                     {/* ДОБАВЛЕНО: Модальное окно уведомлений */}
                     {showNotificationModal && (
@@ -1197,6 +1167,37 @@
                             </div>
                         </div>
                     )}
+                     // В заголовке приложения
+                    <div className="flex justify-between items-center text-xs mb-2">
+                        <span>🏆 {unlockedAchievements.size}/{achievements.length} достижений</span>
+                        {!userStats.notificationsEnabled && (
+                            <button
+                                onClick={() => {
+                                    updateStats({ notificationsEnabled: true });
+                                }}
+                                className="bg-white/30 px-2 py-1 rounded text-xs text-white"
+                            >
+                                🔔 Включить
+                            </button>
+                        )}
+                    </div>
+                    
+                    // В навигации
+                    <button
+                        onClick={(e) => {
+                            createHeartParticles(e);
+                            setShowAchievementsModal(true);
+                        }}
+                        className="flex flex-col items-center py-2 px-1 rounded-lg hover:bg-pink-50 transition-colors relative no-select"
+                    >
+                        <span className="text-xl mb-1">🏆</span>
+                        <span className="text-xs text-gray-600 font-medium">Награды</span>
+                        {newAchievements.length > 0 && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">{newAchievements.length}</span>
+                            </div>
+                        )}
+                    </button>
 
                     {/* ДОБАВЛЕНО: Модальное окно настроек уведомлений */}
                     {showNotificationSettings && (
