@@ -9,19 +9,126 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-// Деструктуризация хуков для удобства
-const { useState: useReactState, useEffect: useReactEffect, useRef: useReactRef } = React;
+        /* Анимации для лепестков */
+        @keyframes fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 0.8; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        
+        /* Анимации для сердечек */
+        @keyframes heartFloat {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(0.8); opacity: 0; }
+        }
+        
+        /* Плавные переходы */
+        .smooth-transition {
+            transition: all 0.3s ease;
+        }
+        
+        /* Градиентные кнопки */
+        .gradient-button {
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            transition: all 0.3s ease;
+        }
+        
+        .gradient-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(236, 72, 153, 0.3);
+        }
+        
+        /* Стили для модальных окон */
+        .modal-backdrop {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        /* Кастомные стили для скролла */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #ec4899;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #db2777;
+        }
 
-const RomanticMobileApp = () => {
-  // Состояния для защиты
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
-  const [showPasswordModal, setShowPasswordModal] = React.useState(true);
-  const [passwordInput, setPasswordInput] = React.useState('');
-  const [passwordError, setPasswordError] = React.useState('');
-  const [attemptCount, setAttemptCount] = React.useState(0);
-  
-  // Пароль для доступа (можно изменить)
-  const SECRET_PASSWORD = 'love2020';
+        /* Анимация для индикатора уведомлений */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .notification-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Стили для настроек уведомлений */
+        .notification-setting {
+            transition: all 0.3s ease;
+        }
+        
+        .notification-setting:hover {
+            background-color: #fdf2f8;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        const RomanticMobileApp = () => {
+            // ДОБАВЛЕНО: Состояния для защиты
+            const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+            const [showPasswordModal, setShowPasswordModal] = React.useState(true);
+            const [passwordInput, setPasswordInput] = React.useState('');
+            const [passwordError, setPasswordError] = React.useState('');
+            const [attemptCount, setAttemptCount] = React.useState(0);
+
+            // ДОБАВЛЕНО: Пароль для доступа (можно изменить)
+            const SECRET_PASSWORD = 'love2020';
+
+            // ДОБАВЛЕНО: Состояния для уведомлений
+            const [notificationPermission, setNotificationPermission] = useState('default');
+            const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+            const [notificationSettings, setNotificationSettings] = useState({
+                importantDates: true,
+                milestones: true,
+                dailyReminder: false,
+                advanceNotice: 7, // дней заранее
+                milestoneInterval: 100 // каждые N дней
+            });
+            const [upcomingNotifications, setUpcomingNotifications] = useState([]);
+            const [lastNotificationCheck, setLastNotificationCheck] = useState(null);
+
+            // Состояния приложения
+            const [currentImageIndex, setCurrentImageIndex] = useState(0);
+            const [currentLoveMessage, setCurrentLoveMessage] = useState(null);
+            const [selectedCategory, setSelectedCategory] = useState('all');
+            const [showStoryModal, setShowStoryModal] = useState(false);
+            const [showGalleryModal, setShowGalleryModal] = useState(false);
+            const [showCalendarModal, setShowCalendarModal] = useState(false);
+            const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+            const [showNotificationModal, setShowNotificationModal] = useState(false);
+            const [hearts, setHearts] = useState([]);
+            const [petals, setPetals] = useState([]);
+            const [daysTogether, setDaysTogether] = useState(0);
+            const [upcomingEvent, setUpcomingEvent] = useState(null);
+            const [hasUpcomingNotification, setHasUpcomingNotification] = useState(false);
+            
+            // Дата начала отношений
+            const relationshipStart = new Date('2007-02-21');
   
   // Состояния для системы достижений
   const [userStats, setUserStats] = React.useState({
