@@ -461,26 +461,8 @@
                         const eventsData = JSON.parse(savedEvents);
                         setUserEvents(eventsData.events || []);
                     } else {
-                        // Инициализируем начальными данными
-                        const initialEvents = [
-                            {
-                                id: 'event_001',
-                                userId: 'user_dima',
-                                userName: 'Дима',
-                                userAvatar: '👨',
-                                title: 'Наша годовщина 2025',
-                                description: 'Были головачи,шашлык был офигенский, спуталась шея с лопаткой, даже головач беззубый смог отведать.Посидели обыденно ,зато подарки были класс! 💕',
-                                date: '2025-08-01',
-                                emoji: '💖',
-                                category: 'relationship',
-                                likes: 0,
-                                comments: [],
-                                createdAt: new Date().toISOString()
-                            },
-                            
-                        ];
-                        setUserEvents(initialEvents);
-                        saveUserEvents(initialEvents);
+                        // Начинаем с пустого списка - только пользовательские события
+                        setUserEvents([]);
                     }
                 } catch (error) {
                     console.error('Error loading user events:', error);
