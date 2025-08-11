@@ -137,6 +137,44 @@
         .safe-area-inset {
             padding-bottom: env(safe-area-inset-bottom);
         }
+
+        /* Стили для обрезки текста */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* Стили для превью изображений */
+        .photo-preview {
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+        
+        /* Анимация для кнопок действий */
+        .action-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Стили для обрезки текста */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* Стили для превью изображений */
+        .photo-preview {
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+        
+        /* Анимация для кнопок действий */
+        .action-button:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -372,11 +410,11 @@
             const generateCustomPhotos = () => {
                 const photos = [];
                 const photoTitles = [
-                    'Наше первое свидание', 'Первый месяц вместе', 'День святого Валентина', 
-                    'Поездка к морю', 'Романтический ужин', 'Прогулка в парке', '8 марта',
-                    'Пикник на природе', 'Домашний вечер', 'Полгода вместе', 'Отпуск в горах',
-                    'Новогодняя ночь', 'День рождения', 'Поход в театр', 'Встреча с друзьями',
-                    'Осенняя прогулка', 'Зимние каникулы', 'Годовщина', 'Весенние цветы', 'Планы на будущее'
+                    'Cтрастная страсть', 'Уютное местечко', 'Блатным погода не погода', 
+                    'Центровые', 'Мечтатели', 'Свадьба01', 'Свадьба02',
+                    'Пикник на природе', 'Встреча с друзьями', 'Поездка к морю', 'Первый совмесный НГ',
+                    'Ресторан каждый день', 'Ты рыбачка я рыбак', 'Водопад любви', 'Встреча с друзьями',
+                    'Прогулка по реке', 'годовшина', 'Лучший друг', 'Путешевствия', 'Вместе навсегда'
                 ];
                 
                 for (let i = 1; i <= 20; i++) {
@@ -397,15 +435,21 @@
             // Состояния для общих событий пользователей
             const [userEvents, setUserEvents] = useState([]);
             const [showAddEventModal, setShowAddEventModal] = useState(false);
+            const [showEditEventModal, setShowEditEventModal] = useState(false);
             const [showUserEventsModal, setShowUserEventsModal] = useState(false);
+            const [showEventDetailsModal, setShowEventDetailsModal] = useState(false);
+            const [selectedEvent, setSelectedEvent] = useState(null);
+            const [editingEvent, setEditingEvent] = useState(null);
             const [newEvent, setNewEvent] = useState({
                 title: '',
                 description: '',
                 date: '',
                 category: 'relationship',
                 emoji: '💕',
-                isPublic: true
+                isPublic: true,
+                photos: []
             });
+            const [eventPhotos, setEventPhotos] = useState([]);
 
             // Загрузка общих событий пользователей
             const loadUserEvents = () => {
@@ -424,29 +468,16 @@
                                 userId: 'user_dima',
                                 userName: 'Дима',
                                 userAvatar: '👨',
-                                title: 'Наша годовщина',
-                                description: '3 года вместе! Время летит незаметно 💕',
-                                date: '2024-02-21',
+                                title: 'Наша годовщина 2025',
+                                description: 'Были головачи,шашлык был офигенский, спуталась шея с лопаткой, даже головач беззубый смог отведать.Посидели обыденно ,зато подарки были класс! 💕',
+                                date: '2025-08-01',
                                 emoji: '💖',
                                 category: 'relationship',
-                                likes: 15,
+                                likes: 0,
                                 comments: [],
                                 createdAt: new Date().toISOString()
                             },
-                            {
-                                id: 'event_002',
-                                userId: 'user_anna',
-                                userName: 'Анна',
-                                userAvatar: '👩',
-                                title: 'День рождения любимой',
-                                description: 'Сегодня день рождения самого дорогого человека 🎂',
-                                date: '2024-03-15',
-                                emoji: '🎉',
-                                category: 'birthday',
-                                likes: 23,
-                                comments: [],
-                                createdAt: new Date().toISOString()
-                            }
+                            
                         ];
                         setUserEvents(initialEvents);
                         saveUserEvents(initialEvents);
@@ -475,6 +506,65 @@
                 }
             };
 
+            // Обработка загрузки фотографий
+            const handlePhotoUpload = (event, isEditing = false) => {
+                const files = Array.from(event.target.files);
+                const validFiles = files.filter(file => 
+                    file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024 // 5MB лимит
+                );
+
+                if (validFiles.length !== files.length) {
+                    alert('Некоторые файлы не были добавлены. Проверьте формат (только изображения) и размер (не более 5MB).');
+                }
+
+                validFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const photoData = {
+                            id: `photo_${Date.now()}_${Math.random()}`,
+                            name: file.name,
+                            data: e.target.result,
+                            size: file.size,
+                            type: file.type,
+                            uploadedAt: new Date().toISOString()
+                        };
+
+                        if (isEditing && editingEvent) {
+                            setEditingEvent(prev => ({
+                                ...prev,
+                                photos: [...(prev.photos || []), photoData]
+                            }));
+                        } else {
+                            setEventPhotos(prev => [...prev, photoData]);
+                            setNewEvent(prev => ({
+                                ...prev,
+                                photos: [...(prev.photos || []), photoData]
+                            }));
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+
+                // Очистка input
+                event.target.value = '';
+            };
+
+            // Удаление фотографии из события
+            const removePhoto = (photoId, isEditing = false) => {
+                if (isEditing && editingEvent) {
+                    setEditingEvent(prev => ({
+                        ...prev,
+                        photos: (prev.photos || []).filter(p => p.id !== photoId)
+                    }));
+                } else {
+                    setEventPhotos(prev => prev.filter(p => p.id !== photoId));
+                    setNewEvent(prev => ({
+                        ...prev,
+                        photos: (prev.photos || []).filter(p => p.id !== photoId)
+                    }));
+                }
+            };
+
             // Добавление нового события
             const addUserEvent = () => {
                 if (!newEvent.title || !newEvent.date) {
@@ -494,7 +584,9 @@
                     category: newEvent.category,
                     likes: 0,
                     comments: [],
+                    photos: eventPhotos,
                     createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                     isPublic: newEvent.isPublic
                 };
 
@@ -509,12 +601,67 @@
                     date: '',
                     category: 'relationship',
                     emoji: '💕',
-                    isPublic: true
+                    isPublic: true,
+                    photos: []
                 });
+                setEventPhotos([]);
                 setShowAddEventModal(false);
 
                 // Показать уведомление об успехе
                 alert('🎉 Событие успешно добавлено и доступно всем пользователям!');
+            };
+
+            // Редактирование события
+            const editUserEvent = (event) => {
+                setEditingEvent({...event});
+                setShowEditEventModal(true);
+            };
+
+            // Сохранение изменений события
+            const saveEditedEvent = () => {
+                if (!editingEvent.title || !editingEvent.date) {
+                    alert('Пожалуйста, заполните название и дату события');
+                    return;
+                }
+
+                const updatedEvent = {
+                    ...editingEvent,
+                    updatedAt: new Date().toISOString()
+                };
+
+                const updatedEvents = userEvents.map(event => 
+                    event.id === editingEvent.id ? updatedEvent : event
+                );
+                
+                setUserEvents(updatedEvents);
+                saveUserEvents(updatedEvents);
+
+                setShowEditEventModal(false);
+                setEditingEvent(null);
+                
+                alert('✅ Событие успешно обновлено!');
+            };
+
+            // Удаление события
+            const deleteUserEvent = (eventId) => {
+                if (confirm('Вы уверены, что хотите удалить это событие? Это действие нельзя отменить.')) {
+                    const updatedEvents = userEvents.filter(event => event.id !== eventId);
+                    setUserEvents(updatedEvents);
+                    saveUserEvents(updatedEvents);
+                    
+                    if (selectedEvent && selectedEvent.id === eventId) {
+                        setShowEventDetailsModal(false);
+                        setSelectedEvent(null);
+                    }
+                    
+                    alert('🗑️ Событие удалено.');
+                }
+            };
+
+            // Просмотр подробностей события
+            const viewEventDetails = (event) => {
+                setSelectedEvent(event);
+                setShowEventDetailsModal(true);
             };
 
             // Лайк события
@@ -562,17 +709,17 @@
                 chapters: [
                     {
                         date: "Первая встреча",
-                        text: "Помню тот день, когда мы впервые встретились. Твои глаза сияли так ярко, что я понял - моя жизнь изменилась навсегда.",
+                        text: "Помню тот день, когда мы впервые встретились. Ты предложила помочь распутать плетенку. Твои глаза сияли так ярко, что я понял - моя жизнь изменилась навсегда.",
                         emotion: "💫"
                     },
                     {
                         date: "Первое свидание",
-                        text: "Наше первое свидание было как в сказке. Мы говорили часами, и время просто остановилось.",
+                        text: "Наше первое свидание было как в сказке. Мы говорили часами, и время просто остановилось, и потеряв голову я забыл свои любимые перчатки, которые подложил тебе под жопку.",
                         emotion: "💕"
                     },
                     {
                         date: "Признание",
-                        text: "Когда я впервые сказал тебе 'Я люблю тебя', мое сердце билось так быстро. Твой ответ стал самым счастливым моментом в моей жизни.",
+                        text: "Когда я впервые сказал тебе 'Я люблю тебя', мое сердце билось так быстро. Твой ответ стал самым счастливым моментом в моей жизни, несмотря на то что мы были в подвале!",
                         emotion: "❤️"
                     },
                     {
@@ -1888,7 +2035,7 @@
                                             </div>
                                         ) : (
                                             userEvents.map((event) => (
-                                                <div key={event.id} className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                                <div key={event.id} className="bg-gray-50 rounded-xl p-3 border border-gray-200 hover:shadow-md transition-shadow">
                                                     <div className="flex items-start gap-3">
                                                         <div className="text-2xl">{event.emoji}</div>
                                                         <div className="flex-1">
@@ -1896,7 +2043,31 @@
                                                                 <span className="text-lg">{event.userAvatar}</span>
                                                                 <h3 className="font-bold text-gray-800 text-sm">{event.title}</h3>
                                                             </div>
-                                                            <p className="text-xs text-gray-600 mb-2">{event.description}</p>
+                                                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                                                            
+                                                            {/* Превью фотографий */}
+                                                            {event.photos && event.photos.length > 0 && (
+                                                                <div className="flex gap-1 mb-2">
+                                                                    {event.photos.slice(0, 3).map((photo, index) => (
+                                                                        <img
+                                                                            key={photo.id}
+                                                                            src={photo.data}
+                                                                            alt="Фото события"
+                                                                            className="w-8 h-8 rounded object-cover cursor-pointer hover:scale-110 transition-transform"
+                                                                            onClick={() => viewEventDetails(event)}
+                                                                        />
+                                                                    ))}
+                                                                    {event.photos.length > 3 && (
+                                                                        <div
+                                                                            className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+                                                                            onClick={() => viewEventDetails(event)}
+                                                                        >
+                                                                            <span className="text-xs font-bold text-gray-600">+{event.photos.length - 3}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            
                                                             <div className="flex items-center justify-between text-xs text-gray-500">
                                                                 <span>📅 {new Date(event.date).toLocaleDateString('ru-RU')}</span>
                                                                 <div className="flex items-center gap-2">
@@ -1907,6 +2078,28 @@
                                                                         <span>❤️</span>
                                                                         <span>{event.likes || 0}</span>
                                                                     </button>
+                                                                    <button
+                                                                        onClick={() => viewEventDetails(event)}
+                                                                        className="text-blue-600 hover:text-blue-800 transition-colors"
+                                                                    >
+                                                                        👁️
+                                                                    </button>
+                                                                    {event.userId === 'current_user' && (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => editUserEvent(event)}
+                                                                                className="text-green-600 hover:text-green-800 transition-colors"
+                                                                            >
+                                                                                ✏️
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => deleteUserEvent(event.id)}
+                                                                                className="text-red-600 hover:text-red-800 transition-colors"
+                                                                            >
+                                                                                🗑️
+                                                                            </button>
+                                                                        </>
+                                                                    )}
                                                                     <span className="text-gray-400">от {event.userName}</span>
                                                                 </div>
                                                             </div>
@@ -1914,6 +2107,304 @@
                                                     </div>
                                                 </div>
                                             ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Модальное окно редактирования события */}
+                    {showEditEventModal && editingEvent && (
+                        <div className="fixed inset-0 bg-black/50 modal-backdrop z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl">
+                                <div className="bg-gradient-to-r from-blue-400 to-cyan-500 text-white p-4">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-xl font-bold flex items-center gap-2">
+                                            ✏️ Редактировать событие
+                                        </h2>
+                                        <button
+                                            onClick={() => {
+                                                setShowEditEventModal(false);
+                                                setEditingEvent(null);
+                                            }}
+                                            className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="p-6 space-y-4 overflow-y-auto max-h-96">
+                                    {/* Название события */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Название события *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingEvent.title}
+                                            onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+
+                                    {/* Описание */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Описание
+                                        </label>
+                                        <textarea
+                                            value={editingEvent.description}
+                                            onChange={(e) => setEditingEvent({...editingEvent, description: e.target.value})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 h-20 resize-none"
+                                        />
+                                    </div>
+
+                                    {/* Дата */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Дата события *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={editingEvent.date}
+                                            onChange={(e) => setEditingEvent({...editingEvent, date: e.target.value})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+
+                                    {/* Эмоджи */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Выберите эмоджи
+                                        </label>
+                                        <div className="grid grid-cols-6 gap-2">
+                                            {['💕', '🎉', '💖', '🌹', '💫', '🎂', '🏠', '✨', '💍', '🌺', '🎆', '💝'].map((emoji) => (
+                                                <button
+                                                    key={emoji}
+                                                    onClick={() => setEditingEvent({...editingEvent, emoji})}
+                                                    className={`text-2xl p-2 rounded-lg transition-all ${
+                                                        editingEvent.emoji === emoji 
+                                                            ? 'bg-blue-100 border-2 border-blue-500' 
+                                                            : 'bg-gray-100 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    {emoji}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Фотографии */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Фотографии события
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={(e) => handlePhotoUpload(e, true)}
+                                            className="hidden"
+                                            id="editPhotoUpload"
+                                        />
+                                        <label
+                                            htmlFor="editPhotoUpload"
+                                            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 transition-colors block"
+                                        >
+                                            <div className="text-xl mb-1">📸</div>
+                                            <div className="text-sm text-gray-600">Добавить фото</div>
+                                        </label>
+
+                                        {/* Текущие фотографии */}
+                                        {editingEvent.photos && editingEvent.photos.length > 0 && (
+                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                {editingEvent.photos.map((photo) => (
+                                                    <div key={photo.id} className="relative group">
+                                                        <img
+                                                            src={photo.data}
+                                                            alt={photo.name || 'Фото'}
+                                                            className="w-full h-20 object-cover rounded"
+                                                        />
+                                                        <button
+                                                            onClick={() => removePhoto(photo.id, true)}
+                                                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Категория */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Категория
+                                        </label>
+                                        <select
+                                            value={editingEvent.category}
+                                            onChange={(e) => setEditingEvent({...editingEvent, category: e.target.value})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        >
+                                            <option value="relationship">Отношения</option>
+                                            <option value="birthday">День рождения</option>
+                                            <option value="memory">Воспоминания</option>
+                                            <option value="holiday">Праздник</option>
+                                            <option value="milestone">Важное событие</option>
+                                            <option value="romantic">Романтический момент</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Кнопки */}
+                                    <div className="flex gap-2 pt-4">
+                                        <button
+                                            onClick={() => {
+                                                setShowEditEventModal(false);
+                                                setEditingEvent(null);
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                                        >
+                                            Отмена
+                                        </button>
+                                        <button
+                                            onClick={saveEditedEvent}
+                                            className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-2 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-700 transition-all"
+                                        >
+                                            Сохранить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Модальное окно деталей события */}
+                    {showEventDetailsModal && selectedEvent && (
+                        <div className="fixed inset-0 bg-black/50 modal-backdrop z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl">
+                                <div className="bg-gradient-to-r from-purple-400 to-pink-500 text-white p-4">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-2xl">{selectedEvent.emoji}</span>
+                                            <h2 className="text-xl font-bold">{selectedEvent.title}</h2>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowEventDetailsModal(false)}
+                                            className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2 text-purple-100 text-sm">
+                                        <span>{selectedEvent.userAvatar}</span>
+                                        <span>{selectedEvent.userName}</span>
+                                        <span>•</span>
+                                        <span>📅 {new Date(selectedEvent.date).toLocaleDateString('ru-RU')}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="p-4 overflow-y-auto max-h-96">
+                                    {/* Описание */}
+                                    {selectedEvent.description && (
+                                        <div className="mb-4">
+                                            <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Фотографии */}
+                                    {selectedEvent.photos && selectedEvent.photos.length > 0 && (
+                                        <div className="mb-4">
+                                            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                                📸 Фотографии ({selectedEvent.photos.length})
+                                            </h3>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {selectedEvent.photos.map((photo, index) => (
+                                                    <div key={photo.id} className="relative group cursor-pointer">
+                                                        <img
+                                                            src={photo.data}
+                                                            alt={photo.name || `Фото ${index + 1}`}
+                                                            className="w-full h-32 object-cover rounded-lg hover:scale-105 transition-transform"
+                                                            onClick={() => {
+                                                                // Открытие фото в полном размере
+                                                                const newWindow = window.open();
+                                                                newWindow.document.write(`<img src="${photo.data}" style="width:100%; height:100%; object-fit:contain;">`);
+                                                            }}
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity">🔍</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Информация о событии */}
+                                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                            <div>
+                                                <span className="font-semibold">Категория:</span>
+                                                <div className="text-gray-800 capitalize">{selectedEvent.category}</div>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold">❤️ Нравится:</span>
+                                                <div className="text-pink-600 font-bold">{selectedEvent.likes || 0}</div>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold">Создано:</span>
+                                                <div className="text-gray-800">
+                                                    {new Date(selectedEvent.createdAt).toLocaleDateString('ru-RU')}
+                                                </div>
+                                            </div>
+                                            {selectedEvent.updatedAt && selectedEvent.updatedAt !== selectedEvent.createdAt && (
+                                                <div>
+                                                    <span className="font-semibold">Обновлено:</span>
+                                                    <div className="text-gray-800">
+                                                        {new Date(selectedEvent.updatedAt).toLocaleDateString('ru-RU')}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Действия */}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                likeEvent(selectedEvent.id);
+                                                setSelectedEvent(prev => ({
+                                                    ...prev,
+                                                    likes: (prev.likes || 0) + 1
+                                                }));
+                                            }}
+                                            className="flex-1 bg-pink-100 hover:bg-pink-200 text-pink-700 py-2 px-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            ❤️ Нравится ({selectedEvent.likes || 0})
+                                        </button>
+                                        
+                                        {selectedEvent.userId === 'current_user' && (
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowEventDetailsModal(false);
+                                                        editUserEvent(selectedEvent);
+                                                    }}
+                                                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 px-3 rounded-lg transition-colors"
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        deleteUserEvent(selectedEvent.id);
+                                                    }}
+                                                    className="bg-red-100 hover:bg-red-200 text-red-700 py-2 px-3 rounded-lg transition-colors"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -2021,6 +2512,94 @@
                                         </select>
                                     </div>
 
+                                    {/* Загрузка фотографий */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Фотографии события
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={(e) => handlePhotoUpload(e)}
+                                            className="hidden"
+                                            id="photoUpload"
+                                        />
+                                        <label
+                                            htmlFor="photoUpload"
+                                            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-400 transition-colors"
+                                        >
+                                            <div className="text-2xl mb-1">📸</div>
+                                            <div className="text-sm text-gray-600">Нажмите для загрузки фото</div>
+                                            <div className="text-xs text-gray-400 mt-1">до 5MB каждое, любой формат изображений</div>
+                                        </label>
+
+                                        {/* Превью загруженных фотографий */}
+                                        {eventPhotos.length > 0 && (
+                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                {eventPhotos.map((photo) => (
+                                                    <div key={photo.id} className="relative group">
+                                                        <img
+                                                            src={photo.data}
+                                                            alt={photo.name}
+                                                            className="w-full h-20 object-cover rounded"
+                                                        />
+                                                        <button
+                                                            onClick={() => removePhoto(photo.id)}
+                                                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Загрузка фотографий */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Фотографии события
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={(e) => handlePhotoUpload(e)}
+                                            className="hidden"
+                                            id="photoUpload"
+                                        />
+                                        <label
+                                            htmlFor="photoUpload"
+                                            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-400 transition-colors"
+                                        >
+                                            <div className="text-2xl mb-1">📸</div>
+                                            <div className="text-sm text-gray-600">Нажмите для загрузки фото</div>
+                                            <div className="text-xs text-gray-400 mt-1">до 5MB каждое, любой формат изображений</div>
+                                        </label>
+
+                                        {/* Превью загруженных фотографий */}
+                                        {eventPhotos.length > 0 && (
+                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                {eventPhotos.map((photo) => (
+                                                    <div key={photo.id} className="relative group">
+                                                        <img
+                                                            src={photo.data}
+                                                            alt={photo.name}
+                                                            className="w-full h-20 object-cover rounded"
+                                                        />
+                                                        <button
+                                                            onClick={() => removePhoto(photo.id)}
+                                                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {/* Публичность */}
                                     <div className="flex items-center gap-3">
                                         <input
@@ -2062,6 +2641,5 @@
         ReactDOM.render(<RomanticMobileApp />, document.getElementById('root'));
     </script>
 </body>
-</html>
 </html>
 
