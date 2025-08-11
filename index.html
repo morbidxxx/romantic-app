@@ -645,6 +645,12 @@
                 setSelectedEvent(event);
                 setShowEventDetailsModal(true);
             };
+            
+            // Очистка примеров событий (вызывается один раз)
+            const clearExampleEvents = () => {
+                localStorage.removeItem('shared_user_events');
+                setUserEvents([]);
+            };
 
             // Лайк события
             const likeEvent = (eventId) => {
