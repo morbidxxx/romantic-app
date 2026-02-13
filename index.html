@@ -590,6 +590,8 @@ const [newAchievements, setNewAchievements] = useState([]);
 // === Анимации ===
 const [hearts, setHearts] = useState([]);
 const [petals, setPetals] = useState([]);
+// === Защита от повторного recordVisit ===
+const hasRecordedVisit = useRef(false);
 // === Данные приложения ===
 const relationshipStart = new Date('2007-02-21');
 const [daysTogether, setDaysTogether] = useState(0);
@@ -784,20 +786,18 @@ return () => clearInterval(interval);
 
 // Аутентификация при загрузке
 useEffect(() => {
-const isAuth = localStorage.getItem('romantic_app_authenticated');
-if (isAuth === 'true') {
-setIsAuthenticated(true);
-setShowPasswordModal(false);
-recordVisit();
-}
-}, []);
+  if (isAuthenticated && !statsLoading && userStats && !hasRecordedVisit.current) {
+    hasRecordedVisit.current = true;
+    recordVisit();
+  }
+}, [isAuthenticated, statsLoading, userStats]);
 
 // === Функции для работы с событиями ===
 const handleAddEvent = (eventData) => {
 const eventToSave = {
-...eventData,
-createdAt: new Date().toISOString(),
-likes: 0
+  ...eventData,
+  createdAt: Date.now(), // ← число, как в useFirebaseCollection
+  likes: 0
 };
 addEvent(eventToSave);
 setShowAddEventModal(false);
