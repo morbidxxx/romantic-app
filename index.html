@@ -234,6 +234,200 @@
     </script>
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
+        // Хук для проверки готовности Firebase
+        const useFirebaseReady = () => {
+            const [ready, setReady] = useState(window.firebaseReady || false);
+            
+            useEffect(() => {
+                if (window.firebaseReady) {
+                    setReady(true);
+                } else {
+                    const handler = () => setReady(true);
+                    window.addEventListener('firebaseReady', handler);
+                    return () => window.removeEventListener('firebaseReady', handler);
+                }
+            }, []);
+            
+            return ready;
+        };
+
+        // Хук для работы с документом Firebase (замена localStorage)
+        const useFirebaseDoc = (collectionName, docId, initialData = {}) => {
+            const [data, setData] = useState(initialData);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const firebaseReady = useFirebaseReady();
+
+            // Загрузка и подписка на изменения
+            useEffect(() => {
+                if (!firebaseReady) return;
+
+                const { doc, onSnapshot, setDoc } = window.firebaseUtils;
+                const docRef = doc(window.firebaseDB, collectionName, docId);
+
+                const unsubscribe = onSnapshot(docRef, 
+                    (snapshot) => {
+                        if (snapshot.exists()) {
+                            setData(snapshot.data());
+                        } else {
+                            // Создаем документ с начальными данными
+                            setDoc(docRef, initialData);
+                            setData(initialData);
+                        }
+                        setLoading(false);
+                    },
+                    (err) => {
+                        console.error('Firebase error:', err);
+                        setError(err);
+                        setLoading(false);
+                    }
+                );
+
+                return () => unsubscribe();
+            }, [firebaseReady, collectionName, docId]);
+
+            // Функция обновления данных
+            const updateData = useCallback(async (newData) => {
+                if (!firebaseReady) return;
+                
+                try {
+                    const { doc, updateDoc, setDoc, getDoc } = window.firebaseUtils;
+                    const docRef = doc(window.firebaseDB, collectionName, docId);
+                    
+                    const snapshot = await getDoc(docRef);
+                    if (snapshot.exists()) {
+                        await updateDoc(docRef, newData);
+                    } else {
+                        await setDoc(docRef, { ...initialData, ...newData });
+                    }
+                } catch (err) {
+                    console.error('Update error:', err);
+                    setError(err);
+                }
+            }, [firebaseReady, collectionName, docId]);
+
+            return { data, loading, error, updateData };
+        };
+
+        // Хук для работы с коллекцией (список сообщений, фото и т.д.)
+        const useFirebaseCollection = (collectionName) => {
+            const [items, setItems] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const firebaseReady = useFirebaseReady();
+
+            // Подписка на коллекцию
+            useEffect(() => {
+                if (!firebaseReady) return;
+
+                const { collection, query, orderBy, onSnapshot } = window.firebaseUtils;
+                const q = query(
+                    collection(window.firebaseDB, collectionName),
+                    orderBy('createdAt', 'desc')
+                );
+
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const newItems = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setItems(newItems);
+                    setLoading(false);
+                });
+
+                return () => unsubscribe();
+            }, [firebaseReady, collectionName]);
+
+            // Добавление элемента
+            const addItem = useCallback(async (item) => {
+                if (!firebaseReady) return;
+                
+                const { collection, addDoc } = window.firebaseUtils;
+                await addDoc(collection(window.firebaseDB, collectionName), {
+                    ...item,
+                    createdAt: Date.now()
+                });
+            }, [firebaseReady, collectionName]);
+
+            // Удаление элемента
+            const removeItem = useCallback(async (itemId) => {
+                if (!firebaseReady) return;
+                
+                const { doc, deleteDoc } = window.firebaseUtils;
+                await deleteDoc(doc(window.firebaseDB, collectionName, itemId));
+            }, [firebaseReady, collectionName]);
+
+            // Обновление элемента
+            const updateItem = useCallback(async (itemId, newData) => {
+                if (!firebaseReady) return;
+                
+                const { doc, updateDoc } = window.firebaseUtils;
+                await updateDoc(doc(window.firebaseDB, collectionName, itemId), newData);
+            }, [firebaseReady, collectionName]);
+
+            return { items, loading, addItem, removeItem, updateItem };
+        };
+
+        // ============================================
+        // ГЛАВНЫЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
+        // ============================================
+
+        const RomanticMobileApp = () => {
+            // Состояния для защиты
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [showPasswordModal, setShowPasswordModal] = useState(true);
+            const [passwordInput, setPasswordInput] = useState('');
+            const [passwordError, setPasswordError] = useState('');
+            const [attemptCount, setAttemptCount] = useState(0);
+            const [activeTab, setActiveTab] = useState('home');
+            
+            const SECRET_PASSWORD = 'love2020';
+
+            // ============================================
+            // ЗАМЕНА localStorage НА FIREBASE
+            // ============================================
+
+            // Статистика пользователя (раньше localStorage)
+            const { 
+                data: userStats, 
+                loading: statsLoading, 
+                updateData: updateStats 
+            } = useFirebaseDoc('appData', 'userStats', {
+                totalVisits: 0,
+                messagesRead: 0,
+                photosViewed: 0,
+                categoriesExplored: [],
+                notificationsEnabled: false,
+                firstVisitDate: null,
+                lastVisitDate: null,
+                streakDays: 0,
+                maxStreak: 0
+            });
+
+            // Сообщения (раньше localStorage)
+            const {
+                items: messages,
+                loading: messagesLoading,
+                addItem: addMessage,
+                removeItem: removeMessage
+            } = useFirebaseCollection('messages');
+
+            // Фотографии (раньше localStorage)
+            const {
+                items: photos,
+                loading: photosLoading,
+                addItem: addPhoto,
+                removeItem: removePhoto
+            } = useFirebaseCollection('photos');
+
+            // Заметки/записи (раньше localStorage)
+            const {
+                items: notes,
+                loading: notesLoading,
+                addItem: addNote,
+                removeItem: removeNote,
+                updateItem: updateNote
+            } = useFirebaseCollection('notes');
+
         
         const RomanticMobileApp = () => {
             // Состояния для защиты
