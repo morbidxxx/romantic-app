@@ -151,16 +151,16 @@ onSnapshot,
 query,
 orderBy,
 serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+} import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 // Конфигурация Firebase
 const firebaseConfig = {
-apiKey: "AIzaSyDTC5bxFgoZwMGY57VmGLc7ZpMx-5SgiHs",
-authDomain: "loveapp-1643d.firebaseapp.com",
-projectId: "loveapp-1643d",
-storageBucket: "loveapp-1643d.firebasestorage.app",
-messagingSenderId: "346049985803",
-appId: "1:346049985803:web:4e5ba419432c6d40f2760e"
-};
+    apiKey: "AIzaSyDTC5bxFgoZwMGY57VmGLc7ZpMx-5SgiHs",
+    authDomain: "loveapp-1643d.firebaseapp.com",
+    projectId: "loveapp-1643d",
+    storageBucket: "loveapp-1643d.firebasestorage.app",
+    messagingSenderId: "346049985803",
+    appId: "1:346049985803:web:4e5ba419432c6d40f2760e"
+  };
 // Инициализация Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
