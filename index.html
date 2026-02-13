@@ -134,61 +134,147 @@ transform: scale(1.05);
 </head>
 <body>
 <script type="module">
-  // Импорт всех необходимых модулей Firebase
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    doc,
-    addDoc,
-    setDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    onSnapshot,
-    query,
-    orderBy,
-    serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+// Импорт всех необходимых модулей Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-  // Конфигурация Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyDTC5bxFgoZwMGY57VmGLc7ZpMx-5SgiHs",
-    authDomain: "loveapp-1643d.firebaseapp.com",
-    projectId: "loveapp-1643d",
-    storageBucket: "loveapp-1643d.firebasestorage.app",
-    messagingSenderId: "346049985803",
-    appId: "1:346049985803:web:4e5ba419432c6d40f2760e"
-  };
+// Конфигурация Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyDTC5bxFgoZwMGY57VmGLc7ZpMx-5SgiHs",
+  authDomain: "loveapp-1643d.firebaseapp.com",
+  projectId: "loveapp-1643d",
+  storageBucket: "loveapp-1643d.firebasestorage.app",
+  messagingSenderId: "346049985803",
+  appId: "1:346049985803:web:4e5ba419432c6d40f2760e"
+};
 
-  // Инициализация
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+// Инициализация Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  // Глобальная доступность
-  window.firebaseDB = db;
-  window.firebaseUtils = {
-    collection,
-    doc,
-    addDoc,
-    setDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    onSnapshot,
-    query,
-    orderBy,
-    serverTimestamp
-  };
-  window.firebaseReady = true;
-  window.dispatchEvent(new Event('firebaseReady'));
-  console.log("✅ Firebase успешно подключен!");
+// Делаем Firebase доступным глобально для React
+window.firebaseDB = db;
+window.firebaseUtils = {
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp
+};
+window.firebaseReady = true;
+window.dispatchEvent(new Event('firebaseReady'));
+console.log("✅ Firebase успешно подключен!");
 </script>
-
+<div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
+
+// Хук для проверки готовности Firebase
+const useFirebaseReady = () => {
+  const [ready, setReady] = useState(window.firebaseReady || false);
+  
+  useEffect(() => {
+    if (window.firebaseReady) {
+      setReady(true);
+    } else {
+      const handler = () => setReady(true);
+      window.addEventListener('firebaseReady', handler);
+      return () => window.removeEventListener('firebaseReady', handler);
+    }
+  }, []);
+  
+  return ready;
+};
+
+// Хук для работы с документом Firebase (замена localStorage)
+const useFirebaseDoc = (collectionName, docId, initialData = {}) => {
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const firebaseReady = useFirebaseReady();
+
+  // Загрузка и подписка на изменения
+  useEffect(() => {
+    if (!firebaseReady) return;
+    
+    const { doc, onSnapshot, setDoc } = window.firebaseUtils;
+    const docRef = doc(window.firebaseDB, collectionName, docId);
+    
+    const unsubscribe = onSnapshot(docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setData(snapshot.data());
+        } else {
+          // Создаем документ с начальными данными
+          const initialDocData = {
+            ...initialData,
+            firstVisitDate: new Date().toDateString(),
+            lastVisitDate: new Date().toDateString()
+          };
+          setDoc(docRef, initialDocData);
+          setData(initialDocData);
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Firebase error:', err);
+        setError(err);
+        setLoading(false);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, [firebaseReady, collectionName, docId]);
+
+  // Функция обновления данных
+  const updateData = useCallback(async (newData) => {
+    if (!firebaseReady) return;
+    try {
+      const { doc, updateDoc, setDoc, getDoc } = window.firebaseUtils;
+      const docRef = doc(window.firebaseDB, collectionName, docId);
+      const snapshot = await getDoc(docRef);
+      
+      if (snapshot.exists()) {
+        await updateDoc(docRef, newData);
+      } else {
+        // Если документ не существует, создаём его
+        const fullData = {
+          ...initialData,
+          ...newData,
+          firstVisitDate: new Date().toDateString(),
+          lastVisitDate: new Date().toDateString()
+        };
+        await setDoc(docRef, fullData);
+      }
+    } catch (err) {
+      console.error('Update error:', err);
+      setError(err);
+    }
+  }, [firebaseReady, collectionName, docId]);
+
+  return { data, loading, error, updateData };
+};
 // Хук для проверки готовности Firebase
 const useFirebaseReady = () => {
 const [ready, setReady] = useState(window.firebaseReady || false);
