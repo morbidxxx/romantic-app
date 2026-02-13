@@ -1966,16 +1966,16 @@ className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
 // ОСНОВНОЙ РЕНДЕР ПРИЛОЖЕНИЯ
 // ============================================
 const App = () => {
-const rootElement = document.getElementById('root');
-return ReactDOM.createRoot(rootElement).render(<RomanticMobileApp />);
+  return <RomanticMobileApp />;
 };
 
 // Запуск приложения после загрузки Firebase
 if (window.firebaseReady) {
-App();
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 } else {
-window.addEventListener('firebaseReady', App);
+  window.addEventListener('firebaseReady', () => {
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  });
 }
-</script>
 </body>
 </html>
