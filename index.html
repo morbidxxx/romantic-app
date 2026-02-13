@@ -133,8 +133,6 @@ transform: scale(1.05);
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script>
 // Импорт Firebase модулей
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import {
@@ -183,7 +181,10 @@ serverTimestamp
 window.firebaseReady = true;
 window.dispatchEvent(new Event('firebaseReady'));
 console.log("✅ Firebase успешно подключен!");
-</script>
+</script>   
+<div id="root"></div>
+<script>
+
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 // Хук для проверки готовности Firebase
