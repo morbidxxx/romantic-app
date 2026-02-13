@@ -1969,13 +1969,14 @@ const App = () => {
   return <RomanticMobileApp />;
 };
 
-// Запуск приложения после загрузки Firebase
+// Правильная инициализация
 if (window.firebaseReady) {
   ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 } else {
   window.addEventListener('firebaseReady', () => {
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   });
-}
+};
+</script>
 </body>
 </html>
