@@ -1848,12 +1848,21 @@ emoji: event?.emoji || '💕'
 const emojis = ['💕', '🎉', '🎊', '🎈', '🎁', '🥂', '🍾', '🎂', '💐', '🌹', '🌺', '🌸', '🌷', '🌼', '🌻', '⭐', '🌟', '✨', '💫', '💖', '💗', '💓', '💞', '💘', '💌'];
 
 const handleSubmit = (e) => {
-e.preventDefault();
-if (!formData.title.trim()) return;
-onSubmit({
-...formData,
-id: event?.id
-});
+  e.preventDefault();
+  if (!formData.title.trim()) return;
+
+  const payload = {
+    ...formData,
+    createdAt: new Date().toISOString(), // ← добавьте сразу здесь (или в handleAddEvent)
+    likes: 0
+  };
+
+  // Удаляем id при создании (Firebase сам его назначит)
+  if (isEditing && event?.id) {
+    payload.id = event.id;
+  }
+
+  onSubmit(payload);
 };
 
 return (
