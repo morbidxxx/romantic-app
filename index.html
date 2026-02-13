@@ -186,7 +186,6 @@ console.log("✅ Firebase успешно подключен!");
 </script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
-
 // Хук для проверки готовности Firebase
 const useFirebaseReady = () => {
 const [ready, setReady] = useState(window.firebaseReady || false);
@@ -201,14 +200,12 @@ return () => window.removeEventListener('firebaseReady', handler);
 }, []);
 return ready;
 };
-
 // Хук для работы с документом Firebase (замена localStorage)
 const useFirebaseDoc = (collectionName, docId, initialData = {}) => {
 const [data, setData] = useState(initialData);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState(null);
 const firebaseReady = useFirebaseReady();
-
 // Загрузка и подписка на изменения
 useEffect(() => {
 if (!firebaseReady) return;
@@ -220,8 +217,13 @@ if (snapshot.exists()) {
 setData(snapshot.data());
 } else {
 // Создаем документ с начальными данными
-setDoc(docRef, initialData);
-setData(initialData);
+const initialDocData = {
+...initialData,
+firstVisitDate: new Date().toDateString(),
+lastVisitDate: new Date().toDateString()
+};
+setDoc(docRef, initialDocData);
+setData(initialDocData);
 }
 setLoading(false);
 },
@@ -233,7 +235,6 @@ setLoading(false);
 );
 return () => unsubscribe();
 }, [firebaseReady, collectionName, docId]);
-
 // Функция обновления данных
 const updateData = useCallback(async (newData) => {
 if (!firebaseReady) return;
@@ -244,23 +245,26 @@ const snapshot = await getDoc(docRef);
 if (snapshot.exists()) {
 await updateDoc(docRef, newData);
 } else {
-await setDoc(docRef, { ...initialData, ...newData });
+// Если документ не существует, создаём его с полными данными
+await setDoc(docRef, { 
+...initialData, 
+...newData,
+firstVisitDate: new Date().toDateString(),
+lastVisitDate: new Date().toDateString()
+});
 }
 } catch (err) {
 console.error('Update error:', err);
 setError(err);
 }
 }, [firebaseReady, collectionName, docId]);
-
 return { data, loading, error, updateData };
 };
-
 // Хук для работы с коллекцией (список сообщений, фото и т.д.)
 const useFirebaseCollection = (collectionName) => {
 const [items, setItems] = useState([]);
 const [loading, setLoading] = useState(true);
 const firebaseReady = useFirebaseReady();
-
 // Подписка на коллекцию
 useEffect(() => {
 if (!firebaseReady) return;
@@ -279,7 +283,6 @@ setLoading(false);
 });
 return () => unsubscribe();
 }, [firebaseReady, collectionName]);
-
 // Добавление элемента
 const addItem = useCallback(async (item) => {
 if (!firebaseReady) return;
@@ -289,57 +292,23 @@ await addDoc(collection(window.firebaseDB, collectionName), {
 createdAt: Date.now()
 });
 }, [firebaseReady, collectionName]);
-
 // Удаление элемента
 const removeItem = useCallback(async (itemId) => {
 if (!firebaseReady) return;
 const { doc, deleteDoc } = window.firebaseUtils;
 await deleteDoc(doc(window.firebaseDB, collectionName, itemId));
 }, [firebaseReady, collectionName]);
-
 // Обновление элемента
 const updateItem = useCallback(async (itemId, newData) => {
 if (!firebaseReady) return;
 const { doc, updateDoc } = window.firebaseUtils;
 await updateDoc(doc(window.firebaseDB, collectionName, itemId), newData);
 }, [firebaseReady, collectionName]);
-
 return { items, loading, addItem, removeItem, updateItem };
-};
-
-// ============================================
-// ЗАМЕНА localStorage НА ВРЕМЕННЫЕ ФУНКЦИИ
-// ============================================
-
-// Временные функции для загрузки/сохранения данных
-const loadUserEvents = () => {
-const saved = localStorage.getItem('user_events');
-if (saved) {
-try {
-const events = JSON.parse(saved);
-return events;
-} catch (e) {
-console.error('Error loading events:', e);
-return [];
-}
-}
-return [];
-};
-
-const saveUserEvents = (events) => {
-localStorage.setItem('user_events', JSON.stringify(events));
-};
-
-const getEventsStats = (userEvents) => {
-return {
-totalEvents: userEvents.length,
-totalLikes: userEvents.reduce((sum, e) => sum + (e.likes || 0), 0)
-};
 };
 // ============================================
 // КОМПОНЕНТ ГАЛЕРЕИ
 // ============================================
-
 const GalleryModal = ({ images, currentIndex, setCurrentIndex, onClose, updateStats, userStats }) => {
 const [localImages, setLocalImages] = useState([]);
 const [allImages, setAllImages] = useState([]);
@@ -347,7 +316,6 @@ const [showUploadOption, setShowUploadOption] = useState(false);
 const [selectedImageIndex, setSelectedImageIndex] = useState(currentIndex);
 const [showFullImage, setShowFullImage] = useState(false);
 const fileInputRef = useRef(null);
-
 // Загрузка сохраненных пользовательских фото
 useEffect(() => {
 const savedPhotos = localStorage.getItem('user_gallery_photos');
@@ -355,12 +323,10 @@ if (savedPhotos) {
 setLocalImages(JSON.parse(savedPhotos));
 }
 }, []);
-
 // Объединяем все изображения
 useEffect(() => {
 setAllImages([...images, ...localImages]);
 }, [images, localImages]);
-
 // Обработка загрузки фото
 const handleFileUpload = (event) => {
 const files = Array.from(event.target.files);
@@ -393,7 +359,6 @@ alert('Файл должен быть изображением и не прев�
 event.target.value = '';
 setShowUploadOption(false);
 };
-
 // Удаление пользовательского фото
 const deleteUserPhoto = (photoId) => {
 if (confirm('Удалить это фото из галереи?')) {
@@ -404,30 +369,24 @@ return updated;
 });
 }
 };
-
 // Навигация
 const goToNext = () => {
 setSelectedImageIndex(prev => (prev + 1) % allImages.length);
 };
-
 const goToPrev = () => {
 setSelectedImageIndex(prev => (prev - 1 + allImages.length) % allImages.length);
 };
-
 // Свайп для мобильных
 const [touchStart, setTouchStart] = useState(null);
 const [touchEnd, setTouchEnd] = useState(null);
 const minSwipeDistance = 50;
-
 const onTouchStart = (e) => {
 setTouchEnd(null);
 setTouchStart(e.targetTouches[0].clientX);
 };
-
 const onTouchMove = (e) => {
 setTouchEnd(e.targetTouches[0].clientX);
 };
-
 const onTouchEnd = () => {
 if (!touchStart || !touchEnd) return;
 const distance = touchStart - touchEnd;
@@ -439,7 +398,6 @@ goToNext();
 goToPrev();
 }
 };
-
 return (
 <div className="fixed inset-0 bg-black z-50 flex flex-col">
 {/* Заголовок */}
@@ -465,7 +423,6 @@ className="text-white text-2xl p-2"
 </button>
 </div>
 </div>
-
 {/* Основное изображение */}
 {allImages.length > 0 && (
 <div
@@ -507,7 +464,6 @@ className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-full"
 )}
 </div>
 )}
-
 {/* Название фото */}
 {allImages.length > 0 && (
 <div className="bg-black/80 p-4 text-center">
@@ -519,7 +475,6 @@ className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-full"
 )}
 </div>
 )}
-
 {/* Миниатюры */}
 <div className="bg-black/90 p-3 safe-area-inset">
 <div className="flex gap-2 overflow-x-auto hide-scrollbar">
@@ -545,7 +500,6 @@ e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewB
 ))}
 </div>
 </div>
-
 {/* Модальное окно загрузки */}
 {showUploadOption && (
 <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-4">
@@ -578,7 +532,6 @@ className="w-full py-3 bg-gray-100 rounded-2xl text-gray-600 font-medium"
 </div>
 </div>
 )}
-
 {/* Полноэкранный просмотр */}
 {showFullImage && allImages[selectedImageIndex] && (
 <div
@@ -604,1397 +557,1416 @@ className="absolute top-4 right-4 text-white text-3xl"
 // ============================================
 // ОСНОВНОЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
 // ============================================
-
 const RomanticMobileApp = () => {
-  // === Состояния аутентификации ===
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(true);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [attemptCount, setAttemptCount] = useState(0);
-  const SECRET_PASSWORD = 'love2020';
+// === Состояния аутентификации ===
+const [isAuthenticated, setIsAuthenticated] = useState(false);
+const [showPasswordModal, setShowPasswordModal] = useState(true);
+const [passwordInput, setPasswordInput] = useState('');
+const [passwordError, setPasswordError] = useState('');
+const [attemptCount, setAttemptCount] = useState(0);
+const SECRET_PASSWORD = 'love2020';
+// === Состояния UI ===
+const [currentImageIndex, setCurrentImageIndex] = useState(0);
+const [currentLoveMessage, setCurrentLoveMessage] = useState(null);
+const [selectedCategory, setSelectedCategory] = useState('all');
+const [showStoryModal, setShowStoryModal] = useState(false);
+const [showGalleryModal, setShowGalleryModal] = useState(false);
+const [showCalendarModal, setShowCalendarModal] = useState(false);
+const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+const [showNotificationModal, setShowNotificationModal] = useState(false);
+const [showNotificationSettingsModal, setShowNotificationSettingsModal] = useState(false);
+const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+const [showNewAchievementModal, setShowNewAchievementModal] = useState(false);
+const [newAchievements, setNewAchievements] = useState([]);
+// === Анимации ===
+const [hearts, setHearts] = useState([]);
+const [petals, setPetals] = useState([]);
+// === Данные приложения ===
+const relationshipStart = new Date('2007-02-21');
+const [daysTogether, setDaysTogether] = useState(0);
+const [upcomingEvent, setUpcomingEvent] = useState(null);
+const [hasUpcomingNotification, setHasUpcomingNotification] = useState(false);
+// === Firebase-данные ===
+const {
+data: userStats,
+loading: statsLoading,
+updateData: updateStats
+} = useFirebaseDoc('appData', 'userStats', {
+totalVisits: 0,
+messagesRead: 0,
+photosViewed: 0,
+categoriesExplored: [],
+notificationsEnabled: false,
+firstVisitDate: null,
+lastVisitDate: null,
+streakDays: 0,
+maxStreak: 0
+});
+const {
+items: userEvents,
+loading: eventsLoading,
+addItem: addEvent,
+removeItem: removeEvent,
+updateItem: updateEvent
+} = useFirebaseCollection('userEvents');
+// === Локальные состояния для модалок событий ===
+const [showUserEventsModal, setShowUserEventsModal] = useState(false);
+const [showAddEventModal, setShowAddEventModal] = useState(false);
+const [showEditEventModal, setShowEditEventModal] = useState(false);
+const [showEventDetailsModal, setShowEventDetailsModal] = useState(false);
+const [selectedEvent, setSelectedEvent] = useState(null);
+const [editingEvent, setEditingEvent] = useState(null);
+const [newEvent, setNewEvent] = useState({
+title: '',
+description: '',
+date: '',
+emoji: '💕'
+});
+const [eventPhotos, setEventPhotos] = useState([]);
+// === Галерея изображений ===
+const generateCustomPhotos = () => {
+const photoTitles = [
+'Страстная страсть', 'Уютное местечко', 'Блатным погода не погода',
+'Центровые', 'Мечтатели', 'Свадьба01', 'Свадьба02',
+'Пикник на природе', 'Встреча с друзьями', 'Поездка к морю', 'Первый совместный НГ',
+'Ресторан каждый день', 'Ты рыбачка я рыбак', 'Водопад любви', 'Встреча с друзьями',
+'Прогулка по реке', 'Годовщина', 'Лучший друг', 'Путешествия', 'Вместе навсегда'
+];
+return Array.from({ length: 24 }, (_, i) => {
+const idx = i + 1;
+return {
+url: `photos/${String(idx).padStart(2, '0')}.jpg`,
+title: photoTitles[i] || `Фото ${idx}`,
+id: `custom-${idx}`
+};
+});
+};
+const allGalleryImages = generateCustomPhotos();
+// === Важные даты ===
+const importantDates = [
+{ date: '2006-07-21', title: 'День знакомства', description: 'Наша первая встреча', emoji: '💫' },
+{ date: '2007-02-14', title: 'День святого Валентина', description: 'Наш первый День влюбленных', emoji: '💕' },
+{ date: '2026-03-08', title: '8 марта', description: 'Праздник моей принцессы', emoji: '🌺' },
+{ date: '2025-12-31', title: 'Новый год', description: 'Встречаем вместе', emoji: '🎉' }
+];
+// === История любви ===
+const loveStory = {
+title: "Наша история любви",
+chapters: [
+{
+date: "Первая встреча",
+text: "Помню тот день, когда мы впервые встретились. Ты предложила помочь распутать плетенку. Твои глаза сияли так ярко, что я понял — моя жизнь изменилась навсегда.",
+emotion: "💫"
+},
+{
+date: "Первое свидание",
+text: "Наше первое свидание было как в сказке. Мы говорили часами, и время просто остановилось, и потеряв голову я забыл свои любимые перчатки, которые подложил тебе под жопку.",
+emotion: "💕"
+},
+{
+date: "Признание",
+text: "Когда я впервые сказал тебе 'Я люблю тебя', мое сердце билось так быстро. Твой ответ стал самым счастливым моментом в моей жизни, несмотря на то что мы были в подвале!",
+emotion: "❤️"
+},
+{
+date: "Сегодня",
+text: "Каждый день с тобой — это новое приключение. Моя любовь к тебе только растет.",
+emotion: "🌟"
+}
+]
+};
+// === Достижения ===
+const achievements = [
+{ id: 'visits_1', title: 'Первые шаги', description: 'Посетил приложение впервые', icon: '👋', requirement: 1, type: 'visits', rarity: 'common' },
+{ id: 'visits_10', title: 'Частый гость', description: 'Посетил приложение 10 раз', icon: '🚶', requirement: 10, type: 'visits', rarity: 'common' },
+{ id: 'messages_10', title: 'Читатель сердца', description: 'Прочитал 10 признаний в любви', icon: '💌', requirement: 10, type: 'messages', rarity: 'common' },
+{ id: 'photos_25', title: 'Смотритель воспоминаний', description: 'Просмотрел 25 фотографий', icon: '📸', requirement: 25, type: 'photos', rarity: 'common' },
+{ id: 'categories_5', title: 'Исследователь чувств', description: 'Изучил 5 категорий признаний', icon: '🔍', requirement: 5, type: 'categories', rarity: 'common' },
+{ id: 'notifications', title: 'Всегда на связи', description: 'Включил уведомления', icon: '🔔', requirement: 1, type: 'notifications', rarity: 'rare' },
+{ id: 'valentines_visit', title: 'День влюбленных', description: 'Посетил приложение 14 февраля', icon: '💝', requirement: 1, type: 'special', rarity: 'epic' },
+{ id: 'story_reader', title: 'Знаток истории', description: 'Прочитал нашу историю любви', icon: '📖', requirement: 1, type: 'special', rarity: 'common' }
+];
+// === Признания в любви ===
+const loveMessagesData = {
+loveMessages: [
+{ id: 1, text: "Ты - мое солнце, которое освещает каждый день моей жизни ☀️", category: "romantic" },
+{ id: 2, text: "Каждый момент с тобой - это маленькое чудо ✨", category: "romantic" },
+{ id: 11, text: "С тобой я понял, что такое настоящая любовь 💕", category: "deep" },
+{ id: 21, text: "Твоя улыбка - самое прекрасное, что есть в моем мире 😊", category: "compliment" },
+{ id: 31, text: "Спасибо за то, что ты есть в моей жизни 🙏", category: "grateful" },
+{ id: 41, text: "Моя любовь к тебе растет с каждым днем 🌱", category: "growing" },
+{ id: 51, text: "Ты - мое вдохновение и моя сила 💪", category: "supportive" },
+{ id: 61, text: "Твои объятия - мой дом, твои губы - мой рай 🏠", category: "intimate" },
+{ id: 71, text: "Каждое утро с тобой - это подарок судьбы 🎁", category: "daily" },
+{ id: 81, text: "Ты превращаешь обычные дни в волшебные моменты ✨", category: "magical" },
+{ id: 91, text: "Мое сердце принадлежит только тебе, навсегда 💝", category: "commitment" },
+{ id: 101, text: "С тобой я готов покорять любые вершины 🏔️", category: "adventure" },
+{ id: 111, text: "Ты - мой ангел-хранитель и моя богиня 👼", category: "divine" },
+{ id: 121, text: "Ты делаешь меня лучше каждый день 🌟", category: "growth" }
+],
+categories: {
+romantic: "Романтические",
+deep: "Глубокие",
+compliment: "Комплименты",
+grateful: "Благодарные",
+growing: "Растущие",
+supportive: "Поддерживающие",
+intimate: "Интимные",
+daily: "Ежедневные",
+magical: "Волшебные",
+commitment: "Преданность",
+adventure: "Приключения",
+divine: "Божественные",
+growth: "Рост"
+}
+};
+// === Эффекты ===
+// Расчёт дней вместе
+useEffect(() => {
+const today = new Date();
+const diffTime = Math.abs(today - relationshipStart);
+const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+setDaysTogether(diffDays);
+checkUpcomingEvents(today);
+}, []);
 
-  // === Состояния UI ===
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [currentLoveMessage, setCurrentLoveMessage] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showStoryModal, setShowStoryModal] = useState(false);
-  const [showGalleryModal, setShowGalleryModal] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [showNotificationSettingsModal, setShowNotificationSettingsModal] = useState(false);
-  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
-  const [showNewAchievementModal, setShowNewAchievementModal] = useState(false);
-  const [newAchievements, setNewAchievements] = useState([]);
+// Автоматическая смена фото
+useEffect(() => {
+if (allGalleryImages.length === 0) return;
+const interval = setInterval(() => {
+setCurrentImageIndex(prev => (prev + 1) % allGalleryImages.length);
+}, 10000);
+return () => clearInterval(interval);
+}, [allGalleryImages.length]);
 
-  // === Анимации ===
-  const [hearts, setHearts] = useState([]);
-  const [petals, setPetals] = useState([]);
+// Падающие лепестки
+useEffect(() => {
+const createPetal = () => {
+const petal = {
+id: Date.now() + Math.random(),
+left: Math.random() * 100,
+animationDuration: 3 + Math.random() * 3,
+size: 12 + Math.random() * 8,
+rotation: Math.random() * 360
+};
+setPetals(prev => [...prev, petal]);
+setTimeout(() => setPetals(prev => prev.filter(p => p.id !== petal.id)), petal.animationDuration * 1000);
+};
+const interval = setInterval(createPetal, 3000);
+return () => clearInterval(interval);
+}, []);
 
-  // === Данные приложения ===
-  const relationshipStart = new Date('2007-02-21');
-  const [daysTogether, setDaysTogether] = useState(0);
-  const [upcomingEvent, setUpcomingEvent] = useState(null);
-  const [hasUpcomingNotification, setHasUpcomingNotification] = useState(false);
+// Частицы-сердечки
+useEffect(() => {
+const animate = () => {
+setHearts(prev =>
+prev.map(h => ({
+...h,
+x: h.x + h.vx,
+y: h.y + h.vy,
+vy: h.vy + 0.1,
+life: h.life - 0.02
+})).filter(h => h.life > 0)
+);
+};
+const interval = setInterval(animate, 16);
+return () => clearInterval(interval);
+}, []);
 
-  // === Firebase-данные ===
-  const {
-    data: userStats,
-    loading: statsLoading,
-    updateData: updateStats
-  } = useFirebaseDoc('appData', 'userStats', {
-    totalVisits: 0,
-    messagesRead: 0,
-    photosViewed: 0,
-    categoriesExplored: [],
-    notificationsEnabled: false,
-    firstVisitDate: null,
-    lastVisitDate: null,
-    streakDays: 0,
-    maxStreak: 0
-  });
+// Аутентификация при загрузке
+useEffect(() => {
+const isAuth = localStorage.getItem('romantic_app_authenticated');
+if (isAuth === 'true') {
+setIsAuthenticated(true);
+setShowPasswordModal(false);
+recordVisit();
+}
+}, []);
 
-  const {
-    items: userEvents,
-    loading: eventsLoading,
-    addItem: addEvent,
-    removeItem: removeEvent,
-    updateItem: updateEvent
-  } = useFirebaseCollection('userEvents');
+// === Функции для работы с событиями ===
+const handleAddEvent = (eventData) => {
+const eventToSave = {
+...eventData,
+createdAt: new Date().toISOString(),
+likes: 0
+};
+addEvent(eventToSave);
+setShowAddEventModal(false);
+setNewEvent({ title: '', description: '', date: '', emoji: '💕' });
+};
 
-  // === Локальные состояния для модалок событий ===
-  const [showUserEventsModal, setShowUserEventsModal] = useState(false);
-  const [showAddEventModal, setShowAddEventModal] = useState(false);
-  const [showEditEventModal, setShowEditEventModal] = useState(false);
-  const [showEventDetailsModal, setShowEventDetailsModal] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [editingEvent, setEditingEvent] = useState(null);
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    description: '',
-    date: '',
-    emoji: '💕'
-  });
-  const [eventPhotos, setEventPhotos] = useState([]);
+const handleUpdateEvent = (eventData) => {
+updateEvent(eventData.id, {
+title: eventData.title,
+description: eventData.description,
+date: eventData.date,
+emoji: eventData.emoji
+});
+setShowEditEventModal(false);
+setEditingEvent(null);
+};
 
-  // === Галерея изображений ===
-  const generateCustomPhotos = () => {
-    const photoTitles = [
-      'Страстная страсть', 'Уютное местечко', 'Блатным погода не погода',
-      'Центровые', 'Мечтатели', 'Свадьба01', 'Свадьба02',
-      'Пикник на природе', 'Встреча с друзьями', 'Поездка к морю', 'Первый совместный НГ',
-      'Ресторан каждый день', 'Ты рыбачка я рыбак', 'Водопад любви', 'Встреча с друзьями',
-      'Прогулка по реке', 'Годовщина', 'Лучший друг', 'Путешествия', 'Вместе навсегда'
-    ];
-    return Array.from({ length: 24 }, (_, i) => {
-      const idx = i + 1;
-      return {
-        url: `photos/${String(idx).padStart(2, '0')}.jpg`,
-        title: photoTitles[i] || `Фото ${idx}`,
-        id: `custom-${idx}`
-      };
-    });
-  };
+const handleDeleteEvent = (eventId) => {
+removeEvent(eventId);
+};
 
-  const allGalleryImages = generateCustomPhotos();
+// === Функции ===
+const handlePasswordSubmit = (e) => {
+e.preventDefault();
+if (passwordInput === SECRET_PASSWORD) {
+setIsAuthenticated(true);
+setShowPasswordModal(false);
+localStorage.setItem('romantic_app_authenticated', 'true');
+recordVisit();
+} else {
+setAttemptCount(prev => prev + 1);
+setPasswordError('Неправильный пароль.');
+if (attemptCount >= 2) {
+setPasswordError('Слишком много попыток. Подождите 30 секунд.');
+setTimeout(() => {
+setAttemptCount(0);
+setPasswordError('');
+}, 30000);
+}
+}
+};
 
-  // === Важные даты ===
-  const importantDates = [
-    { date: '2006-07-21', title: 'День знакомства', description: 'Наша первая встреча', emoji: '💫' },
-    { date: '2007-02-14', title: 'День святого Валентина', description: 'Наш первый День влюбленных', emoji: '💕' },
-    { date: '2026-03-08', title: '8 марта', description: 'Праздник моей принцессы', emoji: '🌺' },
-    { date: '2025-12-31', title: 'Новый год', description: 'Встречаем вместе', emoji: '🎉' }
-  ];
+const recordVisit = () => {
+const todayStr = new Date().toDateString();
+const hour = new Date().getHours();
+const now = new Date();
+const lastVisit = userStats.lastVisitDate ? new Date(userStats.lastVisitDate) : null;
+let newStreak = userStats.streakDays;
 
-  // === История любви ===
-  const loveStory = {
-    title: "Наша история любви",
-    chapters: [
-      {
-        date: "Первая встреча",
-        text: "Помню тот день, когда мы впервые встретились. Ты предложила помочь распутать плетенку. Твои глаза сияли так ярко, что я понял — моя жизнь изменилась навсегда.",
-        emotion: "💫"
-      },
-      {
-        date: "Первое свидание",
-        text: "Наше первое свидание было как в сказке. Мы говорили часами, и время просто остановилось, и потеряв голову я забыл свои любимые перчатки, которые подложил тебе под жопку.",
-        emotion: "💕"
-      },
-      {
-        date: "Признание",
-        text: "Когда я впервые сказал тебе 'Я люблю тебя', мое сердце билось так быстро. Твой ответ стал самым счастливым моментом в моей жизни, несмотря на то что мы были в подвале!",
-        emotion: "❤️"
-      },
-      {
-        date: "Сегодня",
-        text: "Каждый день с тобой — это новое приключение. Моя любовь к тебе только растет.",
-        emotion: "🌟"
-      }
-    ]
-  };
+if (!lastVisit || now.toDateString() !== lastVisit.toDateString()) {
+const diffDays = lastVisit
+? Math.floor((now - lastVisit) / (1000 * 60 * 60 * 24))
+: 1;
+newStreak = diffDays === 1 ? userStats.streakDays + 1 : 1;
+}
 
-  // === Достижения ===
-  const achievements = [
-    { id: 'visits_1', title: 'Первые шаги', description: 'Посетил приложение впервые', icon: '👋', requirement: 1, type: 'visits', rarity: 'common' },
-    { id: 'visits_10', title: 'Частый гость', description: 'Посетил приложение 10 раз', icon: '🚶', requirement: 10, type: 'visits', rarity: 'common' },
-    { id: 'messages_10', title: 'Читатель сердца', description: 'Прочитал 10 признаний в любви', icon: '💌', requirement: 10, type: 'messages', rarity: 'common' },
-    { id: 'photos_25', title: 'Смотритель воспоминаний', description: 'Просмотрел 25 фотографий', icon: '📸', requirement: 25, type: 'photos', rarity: 'common' },
-    { id: 'categories_5', title: 'Исследователь чувств', description: 'Изучил 5 категорий признаний', icon: '🔍', requirement: 5, type: 'categories', rarity: 'common' },
-    { id: 'notifications', title: 'Всегда на связи', description: 'Включил уведомления', icon: '🔔', requirement: 1, type: 'notifications', rarity: 'rare' },
-    { id: 'valentines_visit', title: 'День влюбленных', description: 'Посетил приложение 14 февраля', icon: '💝', requirement: 1, type: 'special', rarity: 'epic' },
-    { id: 'story_reader', title: 'Знаток истории', description: 'Прочитал нашу историю любви', icon: '📖', requirement: 1, type: 'special', rarity: 'common' }
-  ];
+const updatedStats = {
+totalVisits: (userStats.totalVisits || 0) + 1,
+lastVisitDate: todayStr,
+firstVisitDate: userStats.firstVisitDate || todayStr,
+streakDays: newStreak,
+maxStreak: Math.max(userStats.maxStreak || 0, newStreak)
+};
 
-  // === Признания в любви ===
-  const loveMessagesData = {
-    loveMessages: [
-      { id: 1, text: "Ты - мое солнце, которое освещает каждый день моей жизни ☀️", category: "romantic" },
-      { id: 2, text: "Каждый момент с тобой - это маленькое чудо ✨", category: "romantic" },
-      { id: 11, text: "С тобой я понял, что такое настоящая любовь 💕", category: "deep" },
-      { id: 21, text: "Твоя улыбка - самое прекрасное, что есть в моем мире 😊", category: "compliment" },
-      { id: 31, text: "Спасибо за то, что ты есть в моей жизни 🙏", category: "grateful" },
-      { id: 41, text: "Моя любовь к тебе растет с каждым днем 🌱", category: "growing" },
-      { id: 51, text: "Ты - мое вдохновение и моя сила 💪", category: "supportive" },
-      { id: 61, text: "Твои объятия - мой дом, твои губы - мой рай 🏠", category: "intimate" },
-      { id: 71, text: "Каждое утро с тобой - это подарок судьбы 🎁", category: "daily" },
-      { id: 81, text: "Ты превращаешь обычные дни в волшебные моменты ✨", category: "magical" },
-      { id: 91, text: "Мое сердце принадлежит только тебе, навсегда 💝", category: "commitment" },
-      { id: 101, text: "С тобой я готов покорять любые вершины 🏔️", category: "adventure" },
-      { id: 111, text: "Ты - мой ангел-хранитель и моя богиня 👼", category: "divine" },
-      { id: 121, text: "Ты делаешь меня лучше каждый день 🌟", category: "growth" }
-    ],
-    categories: {
-      romantic: "Романтические",
-      deep: "Глубокие",
-      compliment: "Комплименты",
-      grateful: "Благодарные",
-      growing: "Растущие",
-      supportive: "Поддерживающие",
-      intimate: "Интимные",
-      daily: "Ежедневные",
-      magical: "Волшебные",
-      commitment: "Преданность",
-      adventure: "Приключения",
-      divine: "Божественные",
-      growth: "Рост"
-    }
-  };
+updateStats(updatedStats);
+setTimeout(() => checkAchievements({ ...userStats, ...updatedStats }, { currentHour: hour }), 1000);
+};
 
-  // === Эффекты ===
+const checkAchievements = (stats, context = {}) => {
+const unlocked = new Set(JSON.parse(localStorage.getItem('unlocked_achievements') || '[]'));
+const newlyUnlocked = [];
 
-  // Расчёт дней вместе
-  useEffect(() => {
-    const today = new Date();
-    const diffTime = Math.abs(today - relationshipStart);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    setDaysTogether(diffDays);
-    checkUpcomingEvents(today);
-  }, []);
+achievements.forEach(a => {
+if (unlocked.has(a.id)) return;
+let unlockedNow = false;
 
-  // Автоматическая смена фото
-  useEffect(() => {
-    if (allGalleryImages.length === 0) return;
-    const interval = setInterval(() => {
-      setCurrentImageIndex(prev => (prev + 1) % allGalleryImages.length);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [allGalleryImages.length]);
+switch (a.type) {
+case 'visits': unlockedNow = stats.totalVisits >= a.requirement; break;
+case 'messages': unlockedNow = stats.messagesRead >= a.requirement; break;
+case 'photos': unlockedNow = stats.photosViewed >= a.requirement; break;
+case 'categories': unlockedNow = (stats.categoriesExplored?.length || 0) >= a.requirement; break;
+case 'notifications': unlockedNow = stats.notificationsEnabled; break;
+case 'special':
+if (a.id === 'valentines_visit') {
+const d = new Date();
+unlockedNow = d.getMonth() === 1 && d.getDate() === 14;
+} else if (a.id === 'story_reader') {
+unlockedNow = context.storyRead;
+}
+break;
+}
 
-  // Падающие лепестки
-  useEffect(() => {
-    const createPetal = () => {
-      const petal = {
-        id: Date.now() + Math.random(),
-        left: Math.random() * 100,
-        animationDuration: 3 + Math.random() * 3,
-        size: 12 + Math.random() * 8,
-        rotation: Math.random() * 360
-      };
-      setPetals(prev => [...prev, petal]);
-      setTimeout(() => setPetals(prev => prev.filter(p => p.id !== petal.id)), petal.animationDuration * 1000);
-    };
-    const interval = setInterval(createPetal, 3000);
-    return () => clearInterval(interval);
-  }, []);
+if (unlockedNow) {
+newlyUnlocked.push(a);
+unlocked.add(a.id);
+}
+});
 
-  // Частицы-сердечки
-  useEffect(() => {
-    const animate = () => {
-      setHearts(prev =>
-        prev.map(h => ({
-          ...h,
-          x: h.x + h.vx,
-          y: h.y + h.vy,
-          vy: h.vy + 0.1,
-          life: h.life - 0.02
-        })).filter(h => h.life > 0)
-      );
-    };
-    const interval = setInterval(animate, 16);
-    return () => clearInterval(interval);
-  }, []);
+if (newlyUnlocked.length > 0) {
+localStorage.setItem('unlocked_achievements', JSON.stringify([...unlocked]));
+setNewAchievements(newlyUnlocked);
+setShowNewAchievementModal(true);
+}
+};
 
-  // Аутентификация при загрузке
-  useEffect(() => {
-    const isAuth = localStorage.getItem('romantic_app_authenticated');
-    if (isAuth === 'true') {
-      setIsAuthenticated(true);
-      setShowPasswordModal(false);
-      recordVisit();
-    }
-  }, []);
+const generateLoveMessage = () => {
+const filtered = selectedCategory === 'all'
+? loveMessagesData.loveMessages
+: loveMessagesData.loveMessages.filter(m => m.category === selectedCategory);
 
-  // === Функции ===
+const msg = filtered[Math.floor(Math.random() * filtered.length)];
+setCurrentLoveMessage(msg);
+updateStats({ messagesRead: (userStats.messagesRead || 0) + 1 });
+};
 
-  const handlePasswordSubmit = (e) => {
-    e.preventDefault();
-    if (passwordInput === SECRET_PASSWORD) {
-      setIsAuthenticated(true);
-      setShowPasswordModal(false);
-      localStorage.setItem('romantic_app_authenticated', 'true');
-      recordVisit();
-    } else {
-      setAttemptCount(prev => prev + 1);
-      setPasswordError('Неправильный пароль.');
-      if (attemptCount >= 2) {
-        setPasswordError('Слишком много попыток. Подождите 30 секунд.');
-        setTimeout(() => {
-          setAttemptCount(0);
-          setPasswordError('');
-        }, 30000);
-      }
-    }
-  };
+const createHeartParticles = (e) => {
+const rect = e.currentTarget.getBoundingClientRect();
+const cx = rect.left + rect.width / 2;
+const cy = rect.top + rect.height / 2;
 
-  const recordVisit = () => {
-    const todayStr = new Date().toDateString();
-    const hour = new Date().getHours();
+for (let i = 0; i < 4; i++) {
+setHearts(prev => [...prev, {
+id: Date.now() + Math.random(),
+x: cx,
+y: cy,
+vx: (Math.random() - 0.5) * 3,
+vy: -Math.random() * 2 - 1,
+life: 1,
+size: 12 + Math.random() * 8
+}]);
+}
+};
 
-    const now = new Date();
-    const lastVisit = userStats.lastVisitDate ? new Date(userStats.lastVisitDate) : null;
-    let newStreak = userStats.streakDays;
+const checkUpcomingEvents = (today) => {
+const threeDaysLater = new Date(today);
+threeDaysLater.setDate(today.getDate() + 3);
 
-    if (!lastVisit || now.toDateString() !== lastVisit.toDateString()) {
-      const diffDays = lastVisit
-        ? Math.floor((now - lastVisit) / (1000 * 60 * 60 * 24))
-        : 1;
-      newStreak = diffDays === 1 ? userStats.streakDays + 1 : 1;
-    }
+for (const item of importantDates) {
+const eventDate = new Date(item.date);
+if (eventDate >= today && eventDate <= threeDaysLater) {
+const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+setUpcomingEvent({ ...item, daysUntil, isToday: daysUntil === 0, isTomorrow: daysUntil === 1 });
+setHasUpcomingNotification(true);
+setTimeout(() => setShowNotificationModal(true), 2000);
+break;
+}
+}
+};
 
-    const updatedStats = {
-      totalVisits: (userStats.totalVisits || 0) + 1,
-      lastVisitDate: todayStr,
-      firstVisitDate: userStats.firstVisitDate || todayStr,
-      streakDays: newStreak,
-      maxStreak: Math.max(userStats.maxStreak || 0, newStreak)
-    };
+const getCategoryIcon = (cat) => {
+const icons = {
+romantic: '💕', deep: '❤️', compliment: '🌟', grateful: '🙏', growing: '🌱',
+supportive: '💪', intimate: '💋', daily: '☀️', magical: '✨', commitment: '💍',
+adventure: '🗻', divine: '👼', growth: '📈'
+};
+return icons[cat] || '💝';
+};
 
-    updateStats(updatedStats);
-    setTimeout(() => checkAchievements({ ...userStats, ...updatedStats }, { currentHour: hour }), 1000);
-  };
+const getRarityColor = (rarity) => {
+const map = {
+common: 'from-gray-400 to-gray-600',
+rare: 'from-blue-400 to-blue-600',
+epic: 'from-purple-400 to-purple-600',
+legendary: 'from-yellow-400 to-yellow-600'
+};
+return map[rarity] || map.common;
+};
 
-  const checkAchievements = (stats, context = {}) => {
-    const unlocked = new Set(JSON.parse(localStorage.getItem('unlocked_achievements') || '[]'));
-    const newlyUnlocked = [];
-
-    achievements.forEach(a => {
-      if (unlocked.has(a.id)) return;
-
-      let unlockedNow = false;
-      switch (a.type) {
-        case 'visits': unlockedNow = stats.totalVisits >= a.requirement; break;
-        case 'messages': unlockedNow = stats.messagesRead >= a.requirement; break;
-        case 'photos': unlockedNow = stats.photosViewed >= a.requirement; break;
-        case 'categories': unlockedNow = (stats.categoriesExplored?.length || 0) >= a.requirement; break;
-        case 'notifications': unlockedNow = stats.notificationsEnabled; break;
-        case 'special':
-          if (a.id === 'valentines_visit') {
-            const d = new Date();
-            unlockedNow = d.getMonth() === 1 && d.getDate() === 14;
-          } else if (a.id === 'story_reader') {
-            unlockedNow = context.storyRead;
-          }
-          break;
-      }
-
-      if (unlockedNow) {
-        newlyUnlocked.push(a);
-        unlocked.add(a.id);
-      }
-    });
-
-    if (newlyUnlocked.length > 0) {
-      localStorage.setItem('unlocked_achievements', JSON.stringify([...unlocked]));
-      setNewAchievements(newlyUnlocked);
-      setShowNewAchievementModal(true);
-    }
-  };
-
-  const generateLoveMessage = () => {
-    const filtered = selectedCategory === 'all'
-      ? loveMessagesData.loveMessages
-      : loveMessagesData.loveMessages.filter(m => m.category === selectedCategory);
-
-    const msg = filtered[Math.floor(Math.random() * filtered.length)];
-    setCurrentLoveMessage(msg);
-    updateStats({ messagesRead: (userStats.messagesRead || 0) + 1 });
-  };
-
-  const createHeartParticles = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    for (let i = 0; i < 4; i++) {
-      setHearts(prev => [...prev, {
-        id: Date.now() + Math.random(),
-        x: cx,
-        y: cy,
-        vx: (Math.random() - 0.5) * 3,
-        vy: -Math.random() * 2 - 1,
-        life: 1,
-        size: 12 + Math.random() * 8
-      }]);
-    }
-  };
-
-  const checkUpcomingEvents = (today) => {
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(today.getDate() + 3);
-
-    for (const item of importantDates) {
-      const eventDate = new Date(item.date);
-      if (eventDate >= today && eventDate <= threeDaysLater) {
-        const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
-        setUpcomingEvent({ ...item, daysUntil, isToday: daysUntil === 0, isTomorrow: daysUntil === 1 });
-        setHasUpcomingNotification(true);
-        setTimeout(() => setShowNotificationModal(true), 2000);
-        break;
-      }
-    }
-  };
-
-  const getCategoryIcon = (cat) => {
-    const icons = {
-      romantic: '💕', deep: '❤️', compliment: '🌟', grateful: '🙏', growing: '🌱',
-      supportive: '💪', intimate: '💋', daily: '☀️', magical: '✨', commitment: '💍',
-      adventure: '🗻', divine: '👼', growth: '📈'
-    };
-    return icons[cat] || '💝';
-  };
-
-  const getRarityColor = (rarity) => {
-    const map = {
-      common: 'from-gray-400 to-gray-600',
-      rare: 'from-blue-400 to-blue-600',
-      epic: 'from-purple-400 to-purple-600',
-      legendary: 'from-yellow-400 to-yellow-600'
-    };
-    return map[rarity] || map.common;
-  };
-
-  const getRarityName = (rarity) => {
-    const map = {
-      common: 'Обычное',
-      rare: 'Редкое',
-      epic: 'Эпическое',
-      legendary: 'Легендарное'
-    };
-    return map[rarity] || map.common;
-  };
-
-  // === Рендеринг ===
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-600 flex items-center justify-center p-4">
-        <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-white/20">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4 animate-bounce">💝</div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-3">
-              Love Access
-            </h1>
-            <p className="text-gray-600">Место только для нас двоих 💕</p>
-          </div>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div className="relative">
-              <input
-                type="password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Наш секретный код..."
-                className="w-full px-4 py-4 pl-12 border-2 border-pink-200 rounded-2xl focus:outline-none focus:border-pink-500"
-                autoFocus
-                disabled={attemptCount >= 3}
-              />
-              <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-pink-400">🔐</div>
-            </div>
-            {passwordError && (
-              <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-xl animate-shake">
-                {passwordError}
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={attemptCount >= 3 || !passwordInput}
-              className="w-full gradient-button text-white py-4 rounded-2xl font-bold text-lg disabled:opacity-50"
-            >
-              Войти в наш мир 💕
-            </button>
-          </form>
-          <div className="mt-6 text-center text-gray-400 text-sm">Подсказка: дата нашей любви 💝</div>
-        </div>
-      </div>
-    );
-  }
-
-  // === Основной интерфейс ===
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 pb-24 safe-area-inset">
-      {/* Анимации */}
-      {petals.map(p => (
-        <div key={p.id} className="fixed pointer-events-none z-0 text-pink-400"
-          style={{
-            left: `${p.left}%`,
-            top: '-20px',
-            fontSize: `${p.size}px`,
-            animation: `fall ${p.animationDuration}s linear forwards`,
-            transform: `rotate(${p.rotation}deg)`
-          }}>
-          🌸
-        </div>
-      ))}
-      {hearts.map(h => (
-        <div key={h.id} className="fixed pointer-events-none z-10"
-          style={{
-            left: h.x,
-            top: h.y,
-            opacity: h.life,
-            fontSize: h.size,
-            transform: `scale(${h.life})`
-          }}>
-          ❤️
-        </div>
-      ))}
-
-      {/* Шапка */}
-      <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-4 pt-8 rounded-b-3xl shadow-lg">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-xl font-bold">💕 Для тебя, любимая</h1>
-            <p className="text-pink-100 text-sm">Наше приложение любви</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowNotificationSettingsModal(true)} className="relative bg-white/20 p-2 rounded-full">🔔
-              {hasUpcomingNotification && <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full animate-pulse"></span>}
-            </button>
-            <button onClick={() => setShowAchievementsModal(true)} className="bg-white/20 p-2 rounded-full">🏆</button>
-          </div>
-        </div>
-        <div className="bg-white/20 backdrop-blur rounded-2xl p-4 text-center">
-          <div className="text-4xl font-bold mb-1">{daysTogether}</div>
-          <div className="text-pink-100">дней вместе 💝</div>
-          <div className="text-xs text-pink-200 mt-1">с {relationshipStart.toLocaleDateString('ru-RU')}</div>
-        </div>
-      </div>
-
-      {/* Главное фото */}
-      <div className="p-4">
-        <div className="relative rounded-3xl overflow-hidden shadow-xl h-64 cursor-pointer"
-          onClick={() => {
-            setShowGalleryModal(true);
-            updateStats({ photosViewed: (userStats.photosViewed || 0) + 1 });
-          }}>
-          {allGalleryImages.length > 0 && (
-            <>
-              <img src={allGalleryImages[currentImageIndex]?.url} alt="Наше фото"
-                className="w-full h-full object-cover"
-                onError={(e) => e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f0f0f0" width="100" height="100"/><text x="50" y="55" text-anchor="middle" font-size="40">💕</text></svg>'} />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                <p className="text-white text-sm font-medium">{allGalleryImages[currentImageIndex]?.title || 'Наши моменты'}</p>
-                <p className="text-white/80 text-xs">{currentImageIndex + 1} / {allGalleryImages.length} • Нажми для галереи</p>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Генератор признаний */}
-      <div className="px-4 mb-4">
-        <div className="bg-white rounded-3xl p-5 shadow-lg">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="font-bold text-gray-800">💌 Признание в любви</h2>
-            <button onClick={() => setShowCategoriesModal(true)} className="text-xs bg-pink-100 text-pink-600 px-3 py-1 rounded-full">
-              {selectedCategory === 'all' ? 'Все' : loveMessagesData.categories[selectedCategory]}
-            </button>
-          </div>
-          <div className="min-h-24 flex items-center justify-center text-center p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl mb-4">
-            {currentLoveMessage ? (
-              <p className="text-gray-700 text-lg leading-relaxed">{currentLoveMessage.text}</p>
-            ) : (
-              <p className="text-gray-400">Нажми на кнопку ниже ❤️</p>
-            )}
-          </div>
-          <button onClick={(e) => { generateLoveMessage(); createHeartParticles(e); }}
-            className="w-full gradient-button text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform">
-            Новое признание 💕
-          </button>
-        </div>
-      </div>
-
-      {/* Быстрые действия */}
-      <div className="px-4 mb-4">
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => { setShowStoryModal(true); checkAchievements(userStats, { storyRead: true }); }}
-            className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
-            <div className="text-3xl mb-2">📖</div>
-            <div className="font-medium text-gray-800">Наша история</div>
-            <div className="text-xs text-gray-500">Как всё начиналось</div>
-          </button>
-          <button onClick={() => { setShowCalendarModal(true); checkAchievements(userStats, { calendarViewed: true }); }}
-            className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
-            <div className="text-3xl mb-2">📅</div>
-            <div className="font-medium text-gray-800">Важные даты</div>
-            <div className="text-xs text-gray-500">Наши праздники</div>
-          </button>
-          <button onClick={() => setShowGalleryModal(true)}
-            className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
-            <div className="text-3xl mb-2">📸</div>
-            <div className="font-medium text-gray-800">Галерея</div>
-            <div className="text-xs text-gray-500">{allGalleryImages.length} фото</div>
-          </button>
-          <button onClick={() => setShowUserEventsModal(true)}
-            className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
-            <div className="text-3xl mb-2">🎉</div>
-            <div className="font-medium text-gray-800">События</div>
-            <div className="text-xs text-gray-500">{userEvents.length} записей</div>
-          </button>
-        </div>
-      </div>
-
-      {/* Статистика */}
-      <div className="px-4 mb-4">
-        <div className="bg-gradient-to-r from-pink-500 to-purple-500 rounded-3xl p-5 text-white shadow-lg">
-          <h3 className="font-bold mb-4 text-lg">📊 Статистика любви</h3>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="bg-white/20 rounded-2xl p-3">
-              <div className="text-2xl font-bold">{userStats.totalVisits || 0}</div>
-              <div className="text-xs opacity-80">Посещений</div>
-            </div>
-            <div className="bg-white/20 rounded-2xl p-3">
-              <div className="text-2xl font-bold">{userStats.messagesRead || 0}</div>
-              <div className="text-xs opacity-80">Признаний</div>
-            </div>
-            <div className="bg-white/20 rounded-2xl p-3">
-              <div className="text-2xl font-bold">{userStats.streakDays || 0}</div>
-              <div className="text-xs opacity-80">Дней подряд</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Модальные окна */}
-      {showGalleryModal && (
-        <GalleryModal
-          images={allGalleryImages}
-          currentIndex={currentImageIndex}
-          setCurrentIndex={setCurrentImageIndex}
-          onClose={() => setShowGalleryModal(false)}
-          updateStats={updateStats}
-          userStats={userStats}
-        />
-      )}
-
-      {/* Модальное окно истории */}
-{showStoryModal && (
-  <StoryModal
-    story={loveStory}
-    onClose={() => setShowStoryModal(false)}
-  />
+const getRarityName = (rarity) => {
+const map = {
+common: 'Обычное',
+rare: 'Редкое',
+epic: 'Эпическое',
+legendary: 'Легендарное'
+};
+return map[rarity] || map.common;
+};
+// === Рендеринг ===
+if (!isAuthenticated) {
+return (
+<div className="min-h-screen bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-600 flex items-center justify-center p-4">
+<div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-white/20">
+<div className="text-center mb-8">
+<div className="text-6xl mb-4 animate-bounce">💝</div>
+<h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-3">
+Love Access
+</h1>
+<p className="text-gray-600">Место только для нас двоих 💕</p>
+</div>
+<form onSubmit={handlePasswordSubmit} className="space-y-4">
+<div className="relative">
+<input
+type="password"
+value={passwordInput}
+onChange={(e) => setPasswordInput(e.target.value)}
+placeholder="Наш секретный код..."
+className="w-full px-4 py-4 pl-12 border-2 border-pink-200 rounded-2xl focus:outline-none focus:border-pink-500"
+autoFocus
+disabled={attemptCount >= 3}
+/>
+<div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-pink-400">🔐</div>
+</div>
+{passwordError && (
+<div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-xl animate-shake">
+{passwordError}
+</div>
 )}
+<button
+type="submit"
+disabled={attemptCount >= 3 || !passwordInput}
+className="w-full gradient-button text-white py-4 rounded-2xl font-bold text-lg disabled:opacity-50"
+>
+Войти в наш мир 💕
+</button>
+</form>
+<div className="mt-6 text-center text-gray-400 text-sm">Подсказка: дата нашей любви 💝</div>
+</div>
+</div>
+);
+}
+
+// === Основной интерфейс ===
+return (
+<div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 pb-24 safe-area-inset">
+{/* Анимации */}
+{petals.map(p => (
+<div key={p.id} className="fixed pointer-events-none z-0 text-pink-400"
+style={{
+left: `${p.left}%`,
+top: '-20px',
+fontSize: `${p.size}px`,
+animation: `fall ${p.animationDuration}s linear forwards`,
+transform: `rotate(${p.rotation}deg)`
+}}>
+🌸
+</div>
+))}
+{hearts.map(h => (
+<div key={h.id} className="fixed pointer-events-none z-10"
+style={{
+left: h.x,
+top: h.y,
+opacity: h.life,
+fontSize: h.size,
+transform: `scale(${h.life})`
+}}>
+❤️
+</div>
+))}
+
+{/* Шапка */}
+<div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-4 pt-8 rounded-b-3xl shadow-lg">
+<div className="flex justify-between items-center mb-4">
+<div>
+<h1 className="text-xl font-bold">💕 Для тебя, любимая</h1>
+<p className="text-pink-100 text-sm">Наше приложение любви</p>
+</div>
+<div className="flex gap-2">
+<button onClick={() => setShowNotificationSettingsModal(true)} className="relative bg-white/20 p-2 rounded-full">🔔
+{hasUpcomingNotification && <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full animate-pulse"></span>}
+</button>
+<button onClick={() => setShowAchievementsModal(true)} className="bg-white/20 p-2 rounded-full">🏆</button>
+</div>
+</div>
+<div className="bg-white/20 backdrop-blur rounded-2xl p-4 text-center">
+<div className="text-4xl font-bold mb-1">{daysTogether}</div>
+<div className="text-pink-100">дней вместе 💝</div>
+<div className="text-xs text-pink-200 mt-1">с {relationshipStart.toLocaleDateString('ru-RU')}</div>
+</div>
+</div>
+
+{/* Главное фото */}
+<div className="p-4">
+<div className="relative rounded-3xl overflow-hidden shadow-xl h-64 cursor-pointer"
+onClick={() => {
+setShowGalleryModal(true);
+updateStats({ photosViewed: (userStats.photosViewed || 0) + 1 });
+}}>
+{allGalleryImages.length > 0 && (
+<>
+<img src={allGalleryImages[currentImageIndex]?.url} alt="Наше фото"
+className="w-full h-full object-cover"
+onError={(e) => e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f0f0f0" width="100" height="100"/><text x="50" y="55" text-anchor="middle" font-size="40">💕</text></svg>'} />
+<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+<p className="text-white text-sm font-medium">{allGalleryImages[currentImageIndex]?.title || 'Наши моменты'}</p>
+<p className="text-white/80 text-xs">{currentImageIndex + 1} / {allGalleryImages.length} • Нажми для галереи</p>
+</div>
+</>
+)}
+</div>
+</div>
+
+{/* Генератор признаний */}
+<div className="px-4 mb-4">
+<div className="bg-white rounded-3xl p-5 shadow-lg">
+<div className="flex justify-between items-center mb-3">
+<h2 className="font-bold text-gray-800">💌 Признание в любви</h2>
+<button onClick={() => setShowCategoriesModal(true)} className="text-xs bg-pink-100 text-pink-600 px-3 py-1 rounded-full">
+{selectedCategory === 'all' ? 'Все' : loveMessagesData.categories[selectedCategory]}
+</button>
+</div>
+<div className="min-h-24 flex items-center justify-center text-center p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl mb-4">
+{currentLoveMessage ? (
+<p className="text-gray-700 text-lg leading-relaxed">{currentLoveMessage.text}</p>
+) : (
+<p className="text-gray-400">Нажми на кнопку ниже ❤️</p>
+)}
+</div>
+<button onClick={(e) => { generateLoveMessage(); createHeartParticles(e); }}
+className="w-full gradient-button text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform">
+Новое признание 💕
+</button>
+</div>
+</div>
+
+{/* Быстрые действия */}
+<div className="px-4 mb-4">
+<div className="grid grid-cols-2 gap-3">
+<button onClick={() => { setShowStoryModal(true); checkAchievements(userStats, { storyRead: true }); }}
+className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
+<div className="text-3xl mb-2">📖</div>
+<div className="font-medium text-gray-800">Наша история</div>
+<div className="text-xs text-gray-500">Как всё начиналось</div>
+</button>
+<button onClick={() => { setShowCalendarModal(true); checkAchievements(userStats, { calendarViewed: true }); }}
+className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
+<div className="text-3xl mb-2">📅</div>
+<div className="font-medium text-gray-800">Важные даты</div>
+<div className="text-xs text-gray-500">Наши праздники</div>
+</button>
+<button onClick={() => setShowGalleryModal(true)}
+className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
+<div className="text-3xl mb-2">📸</div>
+<div className="font-medium text-gray-800">Галерея</div>
+<div className="text-xs text-gray-500">{allGalleryImages.length} фото</div>
+</button>
+<button onClick={() => setShowUserEventsModal(true)}
+className="bg-white rounded-2xl p-4 shadow-lg text-center action-button smooth-transition">
+<div className="text-3xl mb-2">🎉</div>
+<div className="font-medium text-gray-800">События</div>
+<div className="text-xs text-gray-500">{userEvents.length} записей</div>
+</button>
+</div>
+</div>
+
+{/* Статистика */}
+<div className="px-4 mb-4">
+<div className="bg-gradient-to-r from-pink-500 to-purple-500 rounded-3xl p-5 text-white shadow-lg">
+<h3 className="font-bold mb-4 text-lg">📊 Статистика любви</h3>
+<div className="grid grid-cols-3 gap-3 text-center">
+<div className="bg-white/20 rounded-2xl p-3">
+<div className="text-2xl font-bold">{userStats.totalVisits || 0}</div>
+<div className="text-xs opacity-80">Посещений</div>
+</div>
+<div className="bg-white/20 rounded-2xl p-3">
+<div className="text-2xl font-bold">{userStats.messagesRead || 0}</div>
+<div className="text-xs opacity-80">Признаний</div>
+</div>
+<div className="bg-white/20 rounded-2xl p-3">
+<div className="text-2xl font-bold">{userStats.streakDays || 0}</div>
+<div className="text-xs opacity-80">Дней подряд</div>
+</div>
+</div>
+</div>
+</div>
+
+{/* Модальные окна */}
+{showGalleryModal && (
+<GalleryModal
+images={allGalleryImages}
+currentIndex={currentImageIndex}
+setCurrentIndex={setCurrentImageIndex}
+onClose={() => setShowGalleryModal(false)}
+updateStats={updateStats}
+userStats={userStats}
+/> )}
+
+{/* Модальное окно истории */}
+{showStoryModal && (
+<StoryModal
+story={loveStory}
+onClose={() => setShowStoryModal(false)}
+/> )}
 
 {/* Модальное окно календаря (важных дат) */}
 {showCalendarModal && (
-  <CalendarModal
-    importantDates={importantDates}
-    onClose={() => setShowCalendarModal(false)}
-  />
-)}
+<CalendarModal
+importantDates={importantDates}
+onClose={() => setShowCalendarModal(false)}
+/> )}
 
 {/* Модальное окно категорий */}
 {showCategoriesModal && (
-  <CategoriesModal
-    categories={loveMessagesData.categories}
-    selectedCategory={selectedCategory}
-    onSelect={(cat) => {
-      setSelectedCategory(cat);
-      // Добавляем в изученные категории (для достижений)
-      if (cat !== 'all' && !userStats.categoriesExplored.includes(cat)) {
-        const newCategories = [...(userStats.categoriesExplored || []), cat];
-        updateStats({ categoriesExplored: newCategories });
-      }
-    }}
-    onClose={() => setShowCategoriesModal(false)}
-  />
-)}
+<CategoriesModal
+categories={loveMessagesData.categories}
+selectedCategory={selectedCategory}
+onSelect={(cat) => {
+setSelectedCategory(cat);
+// Добавляем в изученные категории (для достижений)
+if (cat !== 'all' && !userStats.categoriesExplored.includes(cat)) {
+const newCategories = [...(userStats.categoriesExplored || []), cat];
+updateStats({ categoriesExplored: newCategories });
+}
+}}
+onClose={() => setShowCategoriesModal(false)}
+/> )}
 
 {/* Модальное окно настроек уведомлений */}
 {showNotificationSettingsModal && (
-  <NotificationSettingsModal
-    userStats={userStats}
-    updateStats={updateStats}
-    onClose={() => setShowNotificationSettingsModal(false)}
-  />
-)}
+<NotificationSettingsModal
+userStats={userStats}
+updateStats={updateStats}
+onClose={() => setShowNotificationSettingsModal(false)}
+/> )}
 
 {/* Модальное окно достижений */}
 {showAchievementsModal && (
-  <AchievementsModal
-    achievements={achievements}
-    userStats={userStats}
-    onClose={() => setShowAchievementsModal(false)}
-  />
-)}
+<AchievementsModal
+achievements={achievements}
+userStats={userStats}
+onClose={() => setShowAchievementsModal(false)}
+/> )}
 
 {/* Модальное окно новых достижений */}
 {showNewAchievementModal && (
-  <NewAchievementModal
-    achievements={newAchievements}
-    onClose={() => {
-      setShowNewAchievementModal(false);
-      setNewAchievements([]);
-    }}
-  />
-)}
+<NewAchievementModal
+achievements={newAchievements}
+onClose={() => {
+setShowNewAchievementModal(false);
+setNewAchievements([]);
+}}
+/> )}
 
 {/* Уведомление о предстоящем событии */}
 {showNotificationModal && upcomingEvent && (
-  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-3xl p-6 w-full max-w-sm text-center">
-      <div className="text-6xl mb-4">{upcomingEvent.emoji}</div>
-      <h2 className="text-xl font-bold text-gray-800 mb-2">
-        {upcomingEvent.isToday
-          ? `🎉 Сегодня: ${upcomingEvent.title}!`
-          : upcomingEvent.isTomorrow
-          ? `💕 Завтра: ${upcomingEvent.title}!`
-          : `⏰ Через ${upcomingEvent.daysUntil} дня: ${upcomingEvent.title}`}
-      </h2>
-      <p className="text-gray-600 mb-4">{upcomingEvent.description}</p>
-      <button
-        onClick={() => setShowNotificationModal(false)}
-        className="gradient-button text-white py-3 px-8 rounded-2xl font-bold w-full"
-      >
-        Понял! 💕
-      </button>
-    </div>
-  </div>
+<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl p-6 w-full max-w-sm text-center">
+<div className="text-6xl mb-4">{upcomingEvent.emoji}</div>
+<h2 className="text-xl font-bold text-gray-800 mb-2">
+{upcomingEvent.isToday
+? `🎉 Сегодня: ${upcomingEvent.title}!`
+: upcomingEvent.isTomorrow
+? `💕 Завтра: ${upcomingEvent.title}!`
+: `⏰ Через ${upcomingEvent.daysUntil} дня: ${upcomingEvent.title}`}
+</h2>
+<p className="text-gray-600 mb-4">{upcomingEvent.description}</p>
+<button
+onClick={() => setShowNotificationModal(false)}
+className="gradient-button text-white py-3 px-8 rounded-2xl font-bold w-full"
+>
+Понял! 💕
+</button>
+</div>
+</div>
 )}
 
-    </div>
-  );
+{/* МОДАЛЬНЫЕ ОКНА СОБЫТИЙ - НОВОЕ */}
+{showUserEventsModal && (
+<UserEventsModal
+events={userEvents}
+onAdd={() => {
+setShowUserEventsModal(false);
+setShowAddEventModal(true);
+}}
+onEdit={(event) => {
+setEditingEvent(event);
+setShowUserEventsModal(false);
+setShowEditEventModal(true);
+}}
+onView={(event) => {
+setSelectedEvent(event);
+setShowUserEventsModal(false);
+setShowEventDetailsModal(true);
+}}
+onDelete={handleDeleteEvent}
+onClose={() => setShowUserEventsModal(false)}
+loading={eventsLoading}
+/> )}
+
+{showAddEventModal && (
+<EventFormModal
+onSubmit={handleAddEvent}
+onCancel={() => {
+setShowAddEventModal(false);
+setShowUserEventsModal(true);
+}}
+/> )}
+
+{showEditEventModal && editingEvent && (
+<EventFormModal
+event={editingEvent}
+onSubmit={handleUpdateEvent}
+onCancel={() => {
+setShowEditEventModal(false);
+setShowUserEventsModal(true);
+setEditingEvent(null);
+}}
+isEditing={true}
+/> )}
+
+{showEventDetailsModal && selectedEvent && (
+<EventDetailsModal
+event={selectedEvent}
+onClose={() => {
+setShowEventDetailsModal(false);
+setShowUserEventsModal(true);
+}}
+/> )}
+</div>
+);
 };
 // ============================================
 // МОДАЛЬНОЕ ОКНО ИСТОРИИ ЛЮБВИ
 // ============================================
-
 const StoryModal = ({ story, onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">{story.title}</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          <div className="space-y-6">
-            {story.chapters.map((chapter, index) => (
-              <div key={index} className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-5 border border-pink-100">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl mt-1">{chapter.emotion}</span>
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-2">{chapter.date}</h3>
-                    <p className="text-gray-600 leading-relaxed">{chapter.text}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-8 text-center">
-            <button
-              onClick={onClose}
-              className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
-            >
-              Закрыть ❤️
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">{story.title}</h2>
+<button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
+<div className="space-y-6">
+{story.chapters.map((chapter, index) => (
+<div key={index} className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-5 border border-pink-100">
+<div className="flex items-start gap-3">
+<span className="text-2xl mt-1">{chapter.emotion}</span>
+<div>
+<h3 className="font-bold text-gray-800 mb-2">{chapter.date}</h3>
+<p className="text-gray-600 leading-relaxed">{chapter.text}</p>
+</div>
+</div>
+</div>
+))}
+</div>
+<div className="mt-8 text-center">
+<button
+onClick={onClose}
+className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
+>
+Закрыть ❤️
+</button>
+</div>
+</div>
+</div>
+</div>
+);
 };
-
 // ============================================
 // МОДАЛЬНОЕ ОКНО КАЛЕНДАРЯ (ВАЖНЫХ ДАТ)
 // ============================================
-
 const CalendarModal = ({ importantDates, onClose }) => {
-  const today = new Date();
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">📅 Важные даты</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          <div className="space-y-4">
-            {importantDates.map((event, index) => {
-              const eventDate = new Date(event.date);
-              const isToday = eventDate.toDateString() === today.toDateString();
-              const daysDiff = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
-              const isUpcoming = daysDiff > 0 && daysDiff <= 30;
-              
-              return (
-                <div key={index} className={`p-4 rounded-2xl border ${
-                  isToday 
-                    ? 'bg-yellow-50 border-yellow-200' 
-                    : isUpcoming 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{event.emoji}</span>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-800">{event.title}</h3>
-                      <p className="text-gray-600 text-sm">{event.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {eventDate.toLocaleDateString('ru-RU')}
-                        {isToday && ' • Сегодня! 🎉'}
-                        {isUpcoming && !isToday && ` • Через ${daysDiff} дн.`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="mt-8 text-center">
-            <button
-              onClick={onClose}
-              className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
-            >
-              Закрыть 💕
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+const today = new Date();
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">📅 Важные даты</h2>
+<button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
+<div className="space-y-4">
+{importantDates.map((event, index) => {
+const eventDate = new Date(event.date);
+const isToday = eventDate.toDateString() === today.toDateString();
+const daysDiff = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+const isUpcoming = daysDiff > 0 && daysDiff <= 30;
 
+return (
+<div key={index} className={`p-4 rounded-2xl border ${
+isToday
+? 'bg-yellow-50 border-yellow-200'
+: isUpcoming
+? 'bg-green-50 border-green-200'
+: 'bg-gray-50 border-gray-200'
+}`}>
+<div className="flex items-center gap-3">
+<span className="text-2xl">{event.emoji}</span>
+<div className="flex-1">
+<h3 className="font-bold text-gray-800">{event.title}</h3>
+<p className="text-gray-600 text-sm">{event.description}</p>
+<p className="text-xs text-gray-500 mt-1">
+{eventDate.toLocaleDateString('ru-RU')}
+{isToday && ' • Сегодня! 🎉'}
+{isUpcoming && !isToday && ` • Через ${daysDiff} дн.`}
+</p>
+</div>
+</div>
+</div>
+);
+})}
+</div>
+<div className="mt-8 text-center">
+<button
+onClick={onClose}
+className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
+>
+Закрыть 💕
+</button>
+</div>
+</div>
+</div>
+</div>
+);
+};
 // ============================================
 // МОДАЛЬНОЕ ОКНО КАТЕГОРИЙ ПРИЗНАНИЙ
 // ============================================
-
 const CategoriesModal = ({ categories, selectedCategory, onSelect, onClose }) => {
-  const categoryList = Object.entries(categories).map(([key, name]) => ({ key, name }));
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">🏷️ Категории</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => onSelect('all')}
-              className={`p-4 rounded-2xl border-2 text-center ${
-                selectedCategory === 'all'
-                  ? 'border-pink-500 bg-pink-50 text-pink-700'
-                  : 'border-gray-200 bg-gray-50 text-gray-700'
-              }`}
-            >
-              <div className="text-2xl mb-2">💝</div>
-              <div className="font-medium">Все</div>
-            </button>
-            
-            {categoryList.map(({ key, name }) => (
-              <button
-                key={key}
-                onClick={() => onSelect(key)}
-                className={`p-4 rounded-2xl border-2 text-center ${
-                  selectedCategory === key
-                    ? 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="text-2xl mb-2">
-                  {key === 'romantic' ? '💕' :
-                   key === 'deep' ? '❤️' :
-                   key === 'compliment' ? '🌟' :
-                   key === 'grateful' ? '🙏' :
-                   key === 'growing' ? '🌱' :
-                   key === 'supportive' ? '💪' :
-                   key === 'intimate' ? '💋' :
-                   key === 'daily' ? '☀️' :
-                   key === 'magical' ? '✨' :
-                   key === 'commitment' ? '💍' :
-                   key === 'adventure' ? '🗻' :
-                   key === 'divine' ? '👼' :
-                   key === 'growth' ? '📈' : '💝'}
-                </div>
-                <div className="font-medium text-sm">{name}</div>
-              </button>
-            ))}
-          </div>
-          
-          <div className="mt-8 text-center">
-            <button
-              onClick={onClose}
-              className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
-            >
-              Выбрать 💖
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+const categoryList = Object.entries(categories).map(([key, name]) => ({ key, name }));
 
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">🏷️ Категории</h2>
+<button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
+<div className="grid grid-cols-2 gap-3">
+<button
+onClick={() => onSelect('all')}
+className={`p-4 rounded-2xl border-2 text-center ${
+selectedCategory === 'all'
+? 'border-pink-500 bg-pink-50 text-pink-700'
+: 'border-gray-200 bg-gray-50 text-gray-700'
+}`}
+>
+<div className="text-2xl mb-2">💝</div>
+<div className="font-medium">Все</div>
+</button>
+{categoryList.map(({ key, name }) => (
+<button
+key={key}
+onClick={() => onSelect(key)}
+className={`p-4 rounded-2xl border-2 text-center ${
+selectedCategory === key
+? 'border-purple-500 bg-purple-50 text-purple-700'
+: 'border-gray-200 bg-gray-50 text-gray-700'
+}`}
+>
+<div className="text-2xl mb-2">
+{key === 'romantic' ? '💕' :
+key === 'deep' ? '❤️' :
+key === 'compliment' ? '🌟' :
+key === 'grateful' ? '🙏' :
+key === 'growing' ? '🌱' :
+key === 'supportive' ? '💪' :
+key === 'intimate' ? '💋' :
+key === 'daily' ? '☀️' :
+key === 'magical' ? '✨' :
+key === 'commitment' ? '💍' :
+key === 'adventure' ? '🗻' :
+key === 'divine' ? '👼' :
+key === 'growth' ? '📈' : '💝'}
+</div>
+<div className="font-medium text-sm">{name}</div>
+</button>
+))}
+</div>
+<div className="mt-8 text-center">
+<button
+onClick={onClose}
+className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
+>
+Выбрать 💖
+</button>
+</div>
+</div>
+</div>
+</div>
+);
+};
 // ============================================
 // МОДАЛЬНОЕ ОКНО НАСТРОЕК УВЕДОМЛЕНИЙ
 // ============================================
-
 const NotificationSettingsModal = ({ userStats, updateStats, onClose }) => {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(userStats.notificationsEnabled || false);
-  
-  const handleToggle = () => {
-    const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    updateStats({ notificationsEnabled: newValue });
-    
-    if (newValue && Notification.permission !== 'granted') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          new Notification('Уведомления включены!', {
-            body: 'Теперь вы будете получать напоминания о важных датах 💕',
-            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💝</text></svg>'
-          });
-        }
-      });
-    }
-  };
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">🔔 Уведомления</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-              <div>
-                <h3 className="font-medium text-gray-800">Напоминания о датах</h3>
-                <p className="text-sm text-gray-600">Получать уведомления за 3 дня до важных событий</p>
-              </div>
-              <button
-                onClick={handleToggle}
-                className={`w-14 h-7 rounded-full relative transition-colors ${
-                  notificationsEnabled ? 'bg-pink-500' : 'bg-gray-300'
-                }`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${
-                  notificationsEnabled ? 'left-8' : 'left-1'
-                }`}></div>
-              </button>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <h3 className="font-medium text-blue-800 mb-2">ℹ️ Информация</h3>
-              <p className="text-sm text-blue-700">
-                Уведомления работают только если вы разрешите их в браузере. 
-                Они помогут не пропустить наши особенные дни!
-              </p>
-            </div>
-          </div>
-          
-          <div className="mt-8 text-center">
-            <button
-              onClick={onClose}
-              className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
-            >
-              Готово 💕
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+const [notificationsEnabled, setNotificationsEnabled] = useState(userStats.notificationsEnabled || false);
+
+const handleToggle = () => {
+const newValue = !notificationsEnabled;
+setNotificationsEnabled(newValue);
+updateStats({ notificationsEnabled: newValue });
+
+if (newValue && Notification.permission !== 'granted') {
+Notification.requestPermission().then(permission => {
+if (permission === 'granted') {
+new Notification('Уведомления включены!', {
+body: 'Теперь вы будете получать напоминания о важных датах 💕',
+icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💝</text></svg>'
+});
+}
+});
+}
 };
 
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">🔔 Уведомления</h2>
+<button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
+<div className="space-y-4">
+<div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+<div>
+<h3 className="font-medium text-gray-800">Напоминания о датах</h3>
+<p className="text-sm text-gray-600">Получать уведомления за 3 дня до важных событий</p>
+</div>
+<button
+onClick={handleToggle}
+className={`w-14 h-7 rounded-full relative transition-colors ${
+notificationsEnabled ? 'bg-pink-500' : 'bg-gray-300'
+}`}
+>
+<div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${
+notificationsEnabled ? 'left-8' : 'left-1'
+}`}></div>
+</button>
+</div>
+<div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+<h3 className="font-medium text-blue-800 mb-2">ℹ️ Информация</h3>
+<p className="text-sm text-blue-700">
+Уведомления работают только если вы разрешите их в браузере.
+Они помогут не пропустить наши особенные дни!
+</p>
+</div>
+</div>
+<div className="mt-8 text-center">
+<button
+onClick={onClose}
+className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
+>
+Готово 💕
+</button>
+</div>
+</div>
+</div>
+</div>
+);
+};
 // ============================================
 // МОДАЛЬНОЕ ОКНО ДОСТИЖЕНИЙ
 // ============================================
-
 const AchievementsModal = ({ achievements, userStats, onClose }) => {
-  const unlockedAchievements = JSON.parse(localStorage.getItem('unlocked_achievements') || '[]');
-  
-  const getAchievementProgress = (achievement) => {
-    switch (achievement.type) {
-      case 'visits': return Math.min(100, ((userStats.totalVisits || 0) / achievement.requirement) * 100);
-      case 'messages': return Math.min(100, ((userStats.messagesRead || 0) / achievement.requirement) * 100);
-      case 'photos': return Math.min(100, ((userStats.photosViewed || 0) / achievement.requirement) * 100);
-      case 'categories': return Math.min(100, (((userStats.categoriesExplored?.length || 0) / achievement.requirement) * 100));
-      case 'notifications': return userStats.notificationsEnabled ? 100 : 0;
-      case 'special':
-        if (achievement.id === 'valentines_visit') {
-          const d = new Date();
-          return (d.getMonth() === 1 && d.getDate() === 14) ? 100 : 0;
-        } else if (achievement.id === 'story_reader') {
-          // Предполагаем, что если открыто это модальное окно, история уже прочитана
-          return 100;
-        }
-        return 0;
-      default: return 0;
-    }
-  };
-  
-  const getRarityColor = (rarity) => {
-    const map = {
-      common: 'border-gray-300 bg-gray-50',
-      rare: 'border-blue-300 bg-blue-50',
-      epic: 'border-purple-300 bg-purple-50',
-      legendary: 'border-yellow-300 bg-yellow-50'
-    };
-    return map[rarity] || map.common;
-  };
-  
-  const getRarityName = (rarity) => {
-    const map = {
-      common: 'Обычное',
-      rare: 'Редкое',
-      epic: 'Эпическое',
-      legendary: 'Легендарное'
-    };
-    return map[rarity] || map.common;
-  };
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">🏆 Достижения</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          <div className="space-y-4">
-            {achievements.map((achievement) => {
-              const isUnlocked = unlockedAchievements.includes(achievement.id);
-              const progress = getAchievementProgress(achievement);
-              
-              return (
-                <div key={achievement.id} className={`p-4 rounded-2xl border-2 ${getRarityColor(achievement.rarity)}`}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-2xl">{achievement.icon}</span>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-800">{achievement.title}</h3>
-                      <p className="text-xs text-gray-600">{getRarityName(achievement.rarity)}</p>
-                    </div>
-                    {isUnlocked && (
-                      <span className="text-green-500 font-bold">✓</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">{achievement.description}</p>
-                  
-                  {!isUnlocked && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-gray-600">
-                        <span>Прогресс</span>
-                        <span>{Math.round(progress)}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="mt-8 text-center">
-            <button
-              onClick={onClose}
-              className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
-            >
-              Закрыть 🏆
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+const unlockedAchievements = JSON.parse(localStorage.getItem('unlocked_achievements') || '[]');
+
+const getAchievementProgress = (achievement) => {
+switch (achievement.type) {
+case 'visits': return Math.min(100, ((userStats.totalVisits || 0) / achievement.requirement) * 100);
+case 'messages': return Math.min(100, ((userStats.messagesRead || 0) / achievement.requirement) * 100);
+case 'photos': return Math.min(100, ((userStats.photosViewed || 0) / achievement.requirement) * 100);
+case 'categories': return Math.min(100, (((userStats.categoriesExplored?.length || 0) / achievement.requirement) * 100));
+case 'notifications': return userStats.notificationsEnabled ? 100 : 0;
+case 'special':
+if (achievement.id === 'valentines_visit') {
+const d = new Date();
+return (d.getMonth() === 1 && d.getDate() === 14) ? 100 : 0;
+} else if (achievement.id === 'story_reader') {
+// Предполагаем, что если открыто это модальное окно, история уже прочитана
+return 100;
+}
+return 0;
+default: return 0;
+}
 };
 
+const getRarityColor = (rarity) => {
+const map = {
+common: 'border-gray-300 bg-gray-50',
+rare: 'border-blue-300 bg-blue-50',
+epic: 'border-purple-300 bg-purple-50',
+legendary: 'border-yellow-300 bg-yellow-50'
+};
+return map[rarity] || map.common;
+};
+
+const getRarityName = (rarity) => {
+const map = {
+common: 'Обычное',
+rare: 'Редкое',
+epic: 'Эпическое',
+legendary: 'Легендарное'
+};
+return map[rarity] || map.common;
+};
+
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">🏆 Достижения</h2>
+<button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
+<div className="space-y-4">
+{achievements.map((achievement) => {
+const isUnlocked = unlockedAchievements.includes(achievement.id);
+const progress = getAchievementProgress(achievement);
+
+return (
+<div key={achievement.id} className={`p-4 rounded-2xl border-2 ${getRarityColor(achievement.rarity)}`}>
+<div className="flex items-center gap-3 mb-2">
+<span className="text-2xl">{achievement.icon}</span>
+<div className="flex-1">
+<h3 className="font-bold text-gray-800">{achievement.title}</h3>
+<p className="text-xs text-gray-600">{getRarityName(achievement.rarity)}</p>
+</div>
+{isUnlocked && (
+<span className="text-green-500 font-bold">✓</span>
+)}
+</div>
+<p className="text-sm text-gray-600 mb-2">{achievement.description}</p>
+{!isUnlocked && (
+<div className="space-y-1">
+<div className="flex justify-between text-xs text-gray-600">
+<span>Прогресс</span>
+<span>{Math.round(progress)}%</span>
+</div>
+<div className="w-full bg-gray-200 rounded-full h-2">
+<div
+className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+style={{ width: `${progress}%` }}
+></div>
+</div>
+</div>
+)}
+</div>
+);
+})}
+</div>
+<div className="mt-8 text-center">
+<button
+onClick={onClose}
+className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
+>
+Закрыть 🏆
+</button>
+</div>
+</div>
+</div>
+</div>
+);
+};
 // ============================================
 // МОДАЛЬНОЕ ОКНО НОВЫХ ДОСТИЖЕНИЙ
 // ============================================
-
 const NewAchievementModal = ({ achievements, onClose }) => {
-  if (achievements.length === 0) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-pulse">
-      <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl">
-        <div className="text-6xl mb-4">🎉</div>
-        <h2 className="text-2xl font-bold text-white mb-4">Новые достижения!</h2>
-        
-        <div className="space-y-3 mb-6">
-          {achievements.map((achievement, index) => (
-            <div key={index} className="bg-white/20 backdrop-blur rounded-2xl p-3">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-2xl">{achievement.icon}</span>
-                <span className="font-bold text-white">{achievement.title}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <button
-          onClick={onClose}
-          className="bg-white text-orange-600 px-6 py-3 rounded-2xl font-bold hover:bg-gray-100 transition-colors"
-        >
-          Продолжить 💕
-        </button>
-      </div>
-    </div>
-  );
-};
+if (achievements.length === 0) return null;
 
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-pulse">
+<div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl">
+<div className="text-6xl mb-4">🎉</div>
+<h2 className="text-2xl font-bold text-white mb-4">Новые достижения!</h2>
+<div className="space-y-3 mb-6">
+{achievements.map((achievement, index) => (
+<div key={index} className="bg-white/20 backdrop-blur rounded-2xl p-3">
+<div className="flex items-center justify-center gap-2">
+<span className="text-2xl">{achievement.icon}</span>
+<span className="font-bold text-white">{achievement.title}</span>
+</div>
+</div>
+))}
+</div>
+<button
+onClick={onClose}
+className="bg-white text-orange-600 px-6 py-3 rounded-2xl font-bold hover:bg-gray-100 transition-colors"
+>
+Продолжить 💕
+</button>
+</div>
+</div>
+);
+};
 // ============================================
 // КОМПОНЕНТ СОБЫТИЙ ПОЛЬЗОВАТЕЛЯ
 // ============================================
-
-const UserEventsModal = ({ 
-  events, 
-  onAdd, 
-  onEdit, 
-  onView, 
-  onDelete, 
-  onClose,
-  loading 
+const UserEventsModal = ({
+events,
+onAdd,
+onEdit,
+onView,
+onDelete,
+onClose,
+loading
 }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-  
-  if (loading) {
-    return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-        <div className="bg-white rounded-3xl p-8 text-center">
-          <div className="animate-spin text-4xl mb-4">💕</div>
-          <p className="text-gray-600">Загрузка событий...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">🎉 Мои события</h2>
-            <div className="flex gap-2">
-              <button 
-                onClick={onAdd}
-                className="bg-pink-500 text-white p-2 rounded-full text-sm"
-              >
-                +
-              </button>
-              <button 
-                onClick={onClose}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-          
-          {events.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-4">📝</div>
-              <p className="text-gray-600">У вас пока нет событий</p>
-              <p className="text-sm text-gray-500 mt-2">Добавьте первое воспоминание!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {[...events]
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .map((event) => (
-                  <div key={event.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xl">{event.emoji || '💕'}</span>
-                          <h3 className="font-bold text-gray-800">{event.title}</h3>
-                        </div>
-                        {event.description && (
-                          <p className="text-gray-600 text-sm mb-2 line-clamp-2">{event.description}</p>
-                        )}
-                        {event.date && (
-                          <p className="text-xs text-gray-500">
-                            {new Date(event.date).toLocaleDateString('ru-RU')}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-1 ml-2">
-                        <button
-                          onClick={() => onView(event)}
-                          className="text-gray-500 hover:text-blue-500 p-1"
-                        >
-                          👁️
-                        </button>
-                        <button
-                          onClick={() => onEdit(event)}
-                          className="text-gray-500 hover:text-green-500 p-1"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteConfirm(event.id)}
-                          className="text-gray-500 hover:text-red-500 p-1"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {showDeleteConfirm === event.id && (
-                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-red-700 text-sm mb-2">Удалить событие?</p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              onDelete(event.id);
-                              setShowDeleteConfirm(null);
-                            }}
-                            className="bg-red-500 text-white px-3 py-1 rounded text-sm"
-                          >
-                            Да
-                          </button>
-                          <button
-                            onClick={() => setShowDeleteConfirm(null)}
-                            className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm"
-                          >
-                            Отмена
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              }
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+
+if (loading) {
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+<div className="bg-white rounded-3xl p-8 text-center">
+<div className="animate-spin text-4xl mb-4">💕</div>
+<p className="text-gray-600">Загрузка событий...</p>
+</div>
+</div>
+);
+}
+
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">🎉 Мои события</h2>
+<div className="flex gap-2">
+<button
+onClick={onAdd}
+className="bg-pink-500 text-white p-2 rounded-full text-sm"
+>
++
+</button>
+<button
+onClick={onClose}
+className="text-gray-500 hover:text-gray-700 text-2xl"
+>
+✕
+</button>
+</div>
+</div>
+
+{events.length === 0 ? (
+<div className="text-center py-8">
+<div className="text-4xl mb-4">📝</div>
+<p className="text-gray-600">У вас пока нет событий</p>
+<p className="text-sm text-gray-500 mt-2">Добавьте первое воспоминание!</p>
+</div>
+) : (
+<div className="space-y-3">
+{[...events]
+.sort((a, b) => new Date(b.date) - new Date(a.date))
+.map((event) => (
+<div key={event.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
+<div className="flex items-start justify-between">
+<div className="flex-1">
+<div className="flex items-center gap-2 mb-2">
+<span className="text-xl">{event.emoji || '💕'}</span>
+<h3 className="font-bold text-gray-800">{event.title}</h3>
+</div>
+{event.description && (
+<p className="text-gray-600 text-sm mb-2 line-clamp-2">{event.description}</p>
+)}
+{event.date && (
+<p className="text-xs text-gray-500">
+{new Date(event.date).toLocaleDateString('ru-RU')}
+</p>
+)}
+</div>
+<div className="flex gap-1 ml-2">
+<button
+onClick={() => onView(event)}
+className="text-gray-500 hover:text-blue-500 p-1"
+>
+👁️
+</button>
+<button
+onClick={() => onEdit(event)}
+className="text-gray-500 hover:text-green-500 p-1"
+>
+✏️
+</button>
+<button
+onClick={() => setShowDeleteConfirm(event.id)}
+className="text-gray-500 hover:text-red-500 p-1"
+>
+🗑️
+</button>
+</div>
+</div>
+
+{showDeleteConfirm === event.id && (
+<div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+<p className="text-red-700 text-sm mb-2">Удалить событие?</p>
+<div className="flex gap-2">
+<button
+onClick={() => {
+onDelete(event.id);
+setShowDeleteConfirm(null);
+}}
+className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+>
+Да
+</button>
+<button
+onClick={() => setShowDeleteConfirm(null)}
+className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm"
+>
+Отмена
+</button>
+</div>
+</div>
+)}
+</div>
+))
+}
+</div>
+)}
+</div>
+</div>
+</div>
+);
 
 // ============================================
 // ФОРМА ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ СОБЫТИЯ
 // ============================================
-
-const EventFormModal = ({ 
-  event, 
-  onSubmit, 
-  onCancel, 
-  isEditing = false 
+const EventFormModal = ({
+event,
+onSubmit,
+onCancel,
+isEditing = false
 }) => {
-  const [formData, setFormData] = useState({
-    title: event?.title || '',
-    description: event?.description || '',
-    date: event?.date ? new Date(event.date).toISOString().split('T')[0] : '',
-    emoji: event?.emoji || '💕'
-  });
-  
-  const emojis = ['💕', '🎉', '🎊', '🎈', '🎁', '🥂', '🍾', '🎂', '💐', '🌹', '🌺', '🌸', '🌷', '🌼', '🌻', '⭐', '🌟', '✨', '💫', '💖', '💗', '💓', '💞', '💘', '💌'];
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
-    
-    onSubmit({
-      ...formData,
-      id: event?.id
-    });
-  };
-  
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">
-              {isEditing ? 'Редактировать событие' : 'Новое событие'}
-            </h2>
-            <button onClick={onCancel} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Эмодзи</label>
-              <div className="flex flex-wrap gap-2">
-                {emojis.map(emoji => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, emoji }))}
-                    className={`text-2xl p-2 rounded-lg ${
-                      formData.emoji === emoji 
-                        ? 'bg-pink-100 border-2 border-pink-300' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Название *</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-pink-500"
-                placeholder="Название события"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Описание</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-pink-500"
-                placeholder="Описание события"
-                rows="3"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Дата</label>
-              <input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-pink-500"
-              />
-            </div>
-            
-            <div className="flex gap-3 pt-4">
-              <button
-                type="submit"
-                className="flex-1 gradient-button text-white py-3 rounded-2xl font-medium"
-              >
-                {isEditing ? 'Сохранить' : 'Добавить'}
-              </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl font-medium hover:bg-gray-300"
-              >
-                Отмена
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
+const [formData, setFormData] = useState({
+title: event?.title || '',
+description: event?.description || '',
+date: event?.date ? new Date(event.date).toISOString().split('T')[0] : '',
+emoji: event?.emoji || '💕'
+});
+
+const emojis = ['💕', '🎉', '🎊', '🎈', '🎁', '🥂', '🍾', '🎂', '💐', '🌹', '🌺', '🌸', '🌷', '🌼', '🌻', '⭐', '🌟', '✨', '💫', '💖', '💗', '💓', '💞', '💘', '💌'];
+
+const handleSubmit = (e) => {
+e.preventDefault();
+if (!formData.title.trim()) return;
+onSubmit({
+...formData,
+id: event?.id
+});
 };
+
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full">
+<div className="p-6">
+<div className="flex justify-between items-center mb-6">
+<h2 className="text-2xl font-bold text-gray-800">
+{isEditing ? 'Редактировать событие' : 'Новое событие'}
+</h2>
+<button onClick={onCancel} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
+<form onSubmit={handleSubmit} className="space-y-4">
+<div>
+<label className="block text-sm font-medium text-gray-700 mb-2">Эмодзи</label>
+<div className="flex flex-wrap gap-2">
+{emojis.map(emoji => (
+<button
+key={emoji}
+type="button"
+onClick={() => setFormData(prev => ({ ...prev, emoji }))}
+className={`text-2xl p-2 rounded-lg ${
+formData.emoji === emoji
+? 'bg-pink-100 border-2 border-pink-300'
+: 'bg-gray-100 hover:bg-gray-200'
+}`}
+>
+{emoji}
+</button>
+))}
+</div>
+</div>
+
+<div>
+<label className="block text-sm font-medium text-gray-700 mb-2">Название *</label>
+<input
+type="text"
+value={formData.title}
+onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-pink-500"
+placeholder="Название события"
+required
+/>
+</div>
+
+<div>
+<label className="block text-sm font-medium text-gray-700 mb-2">Описание</label>
+<textarea
+value={formData.description}
+onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-pink-500"
+placeholder="Описание события"
+rows="3"
+/>
+</div>
+
+<div>
+<label className="block text-sm font-medium text-gray-700 mb-2">Дата</label>
+<input
+type="date"
+value={formData.date}
+onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-pink-500"
+/>
+</div>
+
+<div className="flex gap-3 pt-4">
+<button
+type="submit"
+className="flex-1 gradient-button text-white py-3 rounded-2xl font-medium"
+>
+{isEditing ? 'Сохранить' : 'Добавить'}
+</button>
+<button
+type="button"
+onClick={onCancel}
+className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl font-medium hover:bg-gray-300"
+>
+Отмена
+</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+);
 
 // ============================================
 // МОДАЛЬНОЕ ОКНО ПОДРОБНОСТЕЙ СОБЫТИЯ
 // ============================================
-
 const EventDetailsModal = ({ event, onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full">
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <span className="text-3xl mr-3">{event.emoji || '💕'}</span>
-              <h2 className="text-2xl font-bold text-gray-800 inline">{event.title}</h2>
-            </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
-          </div>
-          
-          {event.date && (
-            <div className="mb-4 p-3 bg-pink-50 rounded-2xl text-center">
-              <p className="text-pink-700 font-medium">
-                {new Date(event.date).toLocaleDateString('ru-RU', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </p>
-            </div>
-          )}
-          
-          {event.description && (
-            <div className="mb-6">
-              <h3 className="font-bold text-gray-800 mb-2">Описание</h3>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line">{event.description}</p>
-            </div>
-          )}
-          
-          <div className="text-center">
-            <button
-              onClick={onClose}
-              className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
-            >
-              Закрыть 💕
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+return (
+<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div className="bg-white rounded-3xl max-w-md w-full">
+<div className="p-6">
+<div className="flex justify-between items-start mb-6">
+<div>
+<span className="text-3xl mr-3">{event.emoji || '💕'}</span>
+<h2 className="text-2xl font-bold text-gray-800 inline">{event.title}</h2>
+</div>
+<button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+</div>
 
+{event.date && (
+<div className="mb-4 p-3 bg-pink-50 rounded-2xl text-center">
+<p className="text-pink-700 font-medium">
+{new Date(event.date).toLocaleDateString('ru-RU', {
+year: 'numeric',
+month: 'long',
+day: 'numeric'
+})}
+</p>
+</div>
+)}
+
+{event.description && (
+<div className="mb-6">
+<h3 className="font-bold text-gray-800 mb-2">Описание</h3>
+<p className="text-gray-600 leading-relaxed whitespace-pre-line">{event.description}</p>
+</div>
+)}
+
+<div className="text-center">
+<button
+onClick={onClose}
+className="gradient-button text-white px-6 py-3 rounded-2xl font-medium"
+>
+Закрыть 💕
+</button>
+</div>
+</div>
+</div>
+</div>
+);
 // ============================================
 // ОСНОВНОЙ РЕНДЕР ПРИЛОЖЕНИЯ
 // ============================================
-
 const App = () => {
-  const rootElement = document.getElementById('root');
-  return ReactDOM.createRoot(rootElement).render(<RomanticMobileApp />);
+const rootElement = document.getElementById('root');
+return ReactDOM.createRoot(rootElement).render(<RomanticMobileApp />);
 };
 
 // Запуск приложения после загрузки Firebase
 if (window.firebaseReady) {
-  App();
+App();
 } else {
-  window.addEventListener('firebaseReady', App);
+window.addEventListener('firebaseReady', App);
 }
+</script>
+</body>
+</html>
