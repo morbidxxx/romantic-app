@@ -1205,7 +1205,90 @@ const RomanticMobileApp = () => {
         />
       )}
 
-      {/* ... остальные модалки (Story, Calendar, Categories, Achievements и т.д.) можно добавить далее ... */}
+      {/* Модальное окно истории */}
+{showStoryModal && (
+  <StoryModal
+    story={loveStory}
+    onClose={() => setShowStoryModal(false)}
+  />
+)}
+
+{/* Модальное окно календаря (важных дат) */}
+{showCalendarModal && (
+  <CalendarModal
+    importantDates={importantDates}
+    onClose={() => setShowCalendarModal(false)}
+  />
+)}
+
+{/* Модальное окно категорий */}
+{showCategoriesModal && (
+  <CategoriesModal
+    categories={loveMessagesData.categories}
+    selectedCategory={selectedCategory}
+    onSelect={(cat) => {
+      setSelectedCategory(cat);
+      // Добавляем в изученные категории (для достижений)
+      if (cat !== 'all' && !userStats.categoriesExplored.includes(cat)) {
+        const newCategories = [...(userStats.categoriesExplored || []), cat];
+        updateStats({ categoriesExplored: newCategories });
+      }
+    }}
+    onClose={() => setShowCategoriesModal(false)}
+  />
+)}
+
+{/* Модальное окно настроек уведомлений */}
+{showNotificationSettingsModal && (
+  <NotificationSettingsModal
+    userStats={userStats}
+    updateStats={updateStats}
+    onClose={() => setShowNotificationSettingsModal(false)}
+  />
+)}
+
+{/* Модальное окно достижений */}
+{showAchievementsModal && (
+  <AchievementsModal
+    achievements={achievements}
+    userStats={userStats}
+    onClose={() => setShowAchievementsModal(false)}
+  />
+)}
+
+{/* Модальное окно новых достижений */}
+{showNewAchievementModal && (
+  <NewAchievementModal
+    achievements={newAchievements}
+    onClose={() => {
+      setShowNewAchievementModal(false);
+      setNewAchievements([]);
+    }}
+  />
+)}
+
+{/* Уведомление о предстоящем событии */}
+{showNotificationModal && upcomingEvent && (
+  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-3xl p-6 w-full max-w-sm text-center">
+      <div className="text-6xl mb-4">{upcomingEvent.emoji}</div>
+      <h2 className="text-xl font-bold text-gray-800 mb-2">
+        {upcomingEvent.isToday
+          ? `🎉 Сегодня: ${upcomingEvent.title}!`
+          : upcomingEvent.isTomorrow
+          ? `💕 Завтра: ${upcomingEvent.title}!`
+          : `⏰ Через ${upcomingEvent.daysUntil} дня: ${upcomingEvent.title}`}
+      </h2>
+      <p className="text-gray-600 mb-4">{upcomingEvent.description}</p>
+      <button
+        onClick={() => setShowNotificationModal(false)}
+        className="gradient-button text-white py-3 px-8 rounded-2xl font-bold w-full"
+      >
+        Понял! 💕
+      </button>
+    </div>
+  </div>
+)}
 
     </div>
   );
