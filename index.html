@@ -367,21 +367,6 @@
             return { items, loading, addItem, removeItem, updateItem };
         };
 
-        // ============================================
-        // ГЛАВНЫЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
-        // ============================================
-
-        const RomanticMobileApp = () => {
-            // Состояния для защиты
-            const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [showPasswordModal, setShowPasswordModal] = useState(true);
-            const [passwordInput, setPasswordInput] = useState('');
-            const [passwordError, setPasswordError] = useState('');
-            const [attemptCount, setAttemptCount] = useState(0);
-            const [activeTab, setActiveTab] = useState('home');
-            
-            const SECRET_PASSWORD = 'love2020';
-
             // ============================================
             // ЗАМЕНА localStorage НА FIREBASE
             // ============================================
@@ -697,42 +682,156 @@
             });
             const [eventPhotos, setEventPhotos] = useState([]);
     
-            // Загрузка общих событий пользователей
-            const loadUserEvents = () => {
-                try {
-                    // В реальном приложении это будет загрузка с сервера
-                    // Сейчас симулируем через localStorage
-                    const savedEvents = localStorage.getItem('shared_user_events');
-                    if (savedEvents) {
-                        const eventsData = JSON.parse(savedEvents);
-                        setUserEvents(eventsData.events || []);
-                    } else {
-                        // Начинаем с пустого списка - только пользовательские события
-                        setUserEvents([]);
-                    }
-                } catch (error) {
-                    console.error('Error loading user events:', error);
-                    setUserEvents([]);
-                }
-            };
-    
-            // Сохранение общих событий
-            const saveUserEvents = (events) => {
-                try {
-                    const eventsData = {
-                        version: '1.0',
-                        lastUpdated: new Date().toISOString(),
-                        events: events,
-                        stats: {
-                            totalEvents: events.length,
-                            totalLikes: events.reduce((sum, event) => sum + (event.likes || 0), 0)
-                        }
-                    };
-                    localStorage.setItem('shared_user_events', JSON.stringify(eventsData));
-                } catch (error) {
-                    console.error('Error saving user events:', error);
-                }
-            };
+            // Компонент отображения событий
+const EventsPage = () => {
+    const [newEventTitle, setNewEventTitle] = useState('');
+    const [newEventDate, setNewEventDate] = useState('');
+    const [newEventDescription, setNewEventDescription] = useState('');
+
+    // Добавление события
+    const handleAddEvent = async () => {
+        if (!newEventTitle.trim() || !newEventDate) {
+            alert('Заполните название и дату!');
+            return;
+        }
+
+        await addUserEvent({
+            title: newEventTitle.trim(),
+            date: newEventDate,
+            description: newEventDescription.trim(),
+            emoji: '💕',
+            type: 'custom'
+        });
+
+        // Очищаем форму
+        setNewEventTitle('');
+        setNewEventDate('');
+        setNewEventDescription('');
+    };
+
+    return (
+        <div className="p-4">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">📅 Наши события</h2>
+            
+            {/* Статистика */}
+            <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl p-4 mb-4">
+                <div className="flex justify-around text-center">
+                    <div>
+                        <div className="text-2xl font-bold text-pink-600">
+                            {getEventsStats().totalEvents}
+                        </div>
+                        <div className="text-xs text-gray-500">Событий</div>
+                    </div>
+                    <div>
+                        <div className="text-2xl font-bold text-purple-600">
+                            {getEventsStats().totalLikes}
+                        </div>
+                        <div className="text-xs text-gray-500">Лайков</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Форма добавления */}
+            <div className="bg-white rounded-2xl p-4 shadow-lg mb-4">
+                <h3 className="font-semibold text-gray-700 mb-3">➕ Добавить событие</h3>
+                
+                <input
+                    type="text"
+                    value={newEventTitle}
+                    onChange={(e) => setNewEventTitle(e.target.value)}
+                    placeholder="Название события"
+                    className="w-full px-4 py-2 rounded-xl border border-pink-200 focus:border-pink-400 focus:outline-none mb-2"
+                />
+                
+                <input
+                    type="date"
+                    value={newEventDate}
+                    onChange={(e) => setNewEventDate(e.target.value)}
+                    className="w-full px-4 py-2 rounded-xl border border-pink-200 focus:border-pink-400 focus:outline-none mb-2"
+                />
+                
+                <textarea
+                    value={newEventDescription}
+                    onChange={(e) => setNewEventDescription(e.target.value)}
+                    placeholder="Описание (необязательно)"
+                    className="w-full px-4 py-2 rounded-xl border border-pink-200 focus:border-pink-400 focus:outline-none resize-none mb-2"
+                    rows={2}
+                />
+                
+                <button
+                    onClick={handleAddEvent}
+                    className="w-full gradient-button text-white font-semibold py-2 rounded-xl"
+                >
+                    Добавить 💝
+                </button>
+            </div>
+
+            {/* Список событий */}
+            <div className="space-y-3">
+                {eventsLoading ? (
+                    <div className="text-center py-8">
+                        <div className="loading-spinner mx-auto"></div>
+                        <p className="text-gray-400 mt-2">Загрузка событий...</p>
+                    </div>
+                ) : userEvents.length === 0 ? (
+                    <div className="text-center py-8">
+                        <div className="text-4xl mb-2">📅</div>
+                        <p className="text-gray-400">Пока нет событий</p>
+                        <p className="text-gray-300 text-sm">Добавьте первое!</p>
+                    </div>
+                ) : (
+                    userEvents.map(event => (
+                        <div 
+                            key={event.id} 
+                            className="bg-white rounded-2xl p-4 shadow-lg"
+                        >
+                            <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">{event.emoji || '💕'}</span>
+                                        <h4 className="font-semibold text-gray-800">
+                                            {event.title}
+                                        </h4>
+                                    </div>
+                                    <p className="text-sm text-pink-500 mt-1">
+                                        📆 {new Date(event.date).toLocaleDateString('ru-RU', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric'
+                                        })}
+                                    </p>
+                                    {event.description && (
+                                        <p className="text-gray-500 text-sm mt-2">
+                                            {event.description}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {/* Кнопки действий */}
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                                <button
+                                    onClick={() => likeEvent(event.id)}
+                                    className="flex items-center gap-1 text-pink-500 hover:text-pink-600 transition"
+                                >
+                                    <span>❤️</span>
+                                    <span className="text-sm">{event.likes || 0}</span>
+                                </button>
+                                
+                                <button
+                                    onClick={() => deleteUserEvent(event.id)}
+                                    className="text-red-400 hover:text-red-600 text-sm transition"
+                                >
+                                    🗑️ Удалить
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
     
             // Обработка загрузки фотографий
             const handlePhotoUpload = (event, isEditing = false) => {
